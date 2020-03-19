@@ -14,7 +14,7 @@
           "duration": 1,
           "latitude": 49.01606369018555,
           "longitude": 1.6916327476501465,
-          "station": "s16"
+          "station": "s3"
         },
         {
           "id": 2,
@@ -42,7 +42,7 @@
           "duration": 1,
           "latitude": 49.038970947265625,
           "longitude": 1.8017100095748901,
-          "station": "s18"
+          "station": "s2"
         },
         {
           "id": 4,
@@ -52,7 +52,7 @@
           "duration": 1,
           "latitude": 48.98380661010742,
           "longitude": 1.7153891324996948,
-          "station": "s19"
+          "station": "s3"
         }
       ]
     },
@@ -70,7 +70,7 @@
           "duration": 1,
           "latitude": 48.98927307128906,
           "longitude": 1.715390682220459,
-          "station": "s10"
+          "station": "s5"
         },
         {
           "id": 6,
@@ -80,7 +80,7 @@
           "duration": 1,
           "latitude": 48.97529983520508,
           "longitude": 1.6450599431991577,
-          "station": "s7"
+          "station": "s4"
         }
       ]
     }
