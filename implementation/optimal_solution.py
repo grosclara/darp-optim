@@ -1,5 +1,6 @@
 # Import of the pyomo module
 import pyomo.environ as pyo
+from gurobipy import *
 from implementation.data import sets, node_to_station, parameters, nb_bookings
 from pyomo.util.infeasible import log_infeasible_constraints
 
@@ -14,21 +15,10 @@ model.PuD = pyo.Set(initialize=sets["pud"], doc="Pick up and drop off nodes")
 model.V = pyo.Set(initialize=sets["node"], doc="Pick up, drop off and warehouses nodes")
 model.S = pyo.Set(initialize=sets["station"], doc="Stations")
 
-model.M.construct()
-model.P.construct()
-model.D.construct()
-model.PuD.construct()
-model.V.construct()
-model.S.construct()
-
 
 # PARAMETERS
 
-def t_init(i, j):
-    return parameters["time_table"][i, j]
-
-
-model.t = pyo.Param(model.S, model.S, initialize=t_init, doc='Time travel')
+model.t = pyo.Param(model.S, model.S, initialize=parameters["time_table_dict"], doc='Time travel')
 model.e = pyo.Param(model.V, initialize=parameters["duration_dict"], doc="Run time")
 model.tw = pyo.Param(model.V, initialize=parameters["tw_dict"], doc="Booking time window")
 model.m_max = pyo.Param(model.P, initialize=parameters["max_duration_dict"], doc="Booking max duration")
@@ -160,10 +150,10 @@ model.c15 = pyo.Constraint(rule=c15_rule, doc='No loop constraint')
 
 # DEFINE OBJECTIVE AND SOLVE
 
-eps = 0.001
-
 
 def objective_rule(model):
+    # Epsilon should be greater than the total possible distance travelled by the whole vehicle fleet
+    eps = 1/sum(model.t[i,j] for i in model.S for j in model.S)
     return sum(model.x[i, j, k] for i in model.V for j in model.V for k in model.M) - eps * sum(
         model.t[node_to_station[i], node_to_station[j]] * model.x[i, j, k] for i in model.V for j in model.V for k in
         model.M)
@@ -176,7 +166,7 @@ model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize, doc='Ob
 def pyomo_postprocess(options=None, instance=None, results=None):
     # instance.pprint()
     # instance.x.display()
-    # instance.write(filename='output.json’, format='json')
+    # instance.write(filename='output.json', format='json')
     pass
 
 
@@ -184,12 +174,12 @@ def run_model():
     # This emulates what the pyomo command-line tools does
     instance = model.create_instance()
     opt = pyo.SolverFactory("gurobi")
-    log_infeasible_constraints(model)
     results = opt.solve(instance, tee=True)
     instance.solutions.load_from(results)
     # sends results to stdout
 
     print("\nDisplaying Solution\n" + '-' * 60)
+    print(log_infeasible_constraints(model))
     pyomo_postprocess(None, instance, results)
 
-#run_model()
+run_model()
