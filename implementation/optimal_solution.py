@@ -15,6 +15,13 @@ model.PuD = pyo.Set(initialize=sets["pud"], doc="Pick up and drop off nodes")
 model.V = pyo.Set(initialize=sets["node"], doc="Pick up, drop off and warehouses nodes")
 model.S = pyo.Set(initialize=sets["station"], doc="Stations")
 
+model.M.construct()
+model.P.construct()
+model.D.construct()
+model.PuD.construct()
+model.V.construct()
+model.S.construct()
+
 
 # PARAMETERS
 
@@ -164,7 +171,7 @@ model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize, doc='Ob
 
 # Display of the output
 def pyomo_postprocess(options=None, instance=None, results=None):
-    # instance.pprint()
+    instance.pprint()
     # instance.x.display()
     # instance.write(filename='output.json', format='json')
     pass

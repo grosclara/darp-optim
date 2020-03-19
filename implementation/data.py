@@ -74,13 +74,13 @@ time_data = pandas.read_csv("data/toy_travel_times.csv", sep=';')
 nb_stations = len(time_data)
 
 # Matrix where time_table[i,j] is the travel time from station i to j
-time_table = numpy.zeros(shape=(nb_stations, nb_stations), dtype=int)
+time_table_dict = {}
 
 for i in range(nb_stations):
     for j in range(nb_stations):
-        time_table[i, j] = int(time_data["s{}".format(i)][j])
+        time_table_dict[i, j] = int(time_data["s{}".format(i)][j])
 
-# print(time_table)
+# print(time_table_dict)
 
 # SETS
 
@@ -201,17 +201,17 @@ for booking in bookings:
     for job in booking.jobs:
         tw_dict[job.job_id] = (job.tw_start, job.tw_end)
 
-# Compute tw at warehouses stations (TO IMPROVE)
+# Compute tw at warehouses stations
 # Compute l_0,u_0
 l_i0 = min(tw_dict[i][0] for i in range(1, 2 * nb_bookings + 1))
-t_start = min(time_table[0, i] for i in range(1, nb_stations))
+t_start = min(time_table_dict[0, i] for i in range(1, nb_stations))
 L_k0 = min(tw_driver_dict[shifts[k].long_id][0] for k in range(nb_shifts))
 
 u_i0 = max(tw_dict[i][1] for i in range(1, 2 * nb_bookings + 1))
-t_end = max(time_table[i, 2 * nb_bookings + 2] for i in range(1, nb_stations))
+t_end = max(time_table_dict[i, nb_stations-1] for i in range(1, nb_stations))
 U_k0 = max(tw_driver_dict[shifts[k].long_id][1] for k in range(nb_shifts))
 
-l_0 = min(l_i0 - t_start, L_k0)
+l_0 = max(0, min(l_i0 - t_start, L_k0))
 u_0 = max(u_i0 + t_end, U_k0)
 
 tw_dict[0] = (l_0, u_0)
@@ -219,7 +219,7 @@ tw_dict[2 * nb_bookings + 1] = (l_0, u_0)
 
 # print(tw_dict[1][0])
 
-parameters = {"time_table": time_table, "duration_dict": duration_dict, "price_dict": price_dict,
+parameters = {"time_table_dict": time_table_dict, "duration_dict": duration_dict, "price_dict": price_dict,
               "max_duration_dict": max_duration_dict, "passengers_dict": passengers_dict,
               "capacity_dict": capacity_dict, "max_turnover_dict": max_turnover_dict, "tw_driver_dict": tw_driver_dict,
               "tw_dict": tw_dict}
