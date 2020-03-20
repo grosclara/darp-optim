@@ -30,7 +30,7 @@ model.e = pyo.Param(model.V, initialize=parameters["duration_dict"], doc="Run ti
 model.tw = pyo.Param(model.V, initialize=parameters["tw_dict"], doc="Booking time window")
 model.m_max = pyo.Param(model.P, initialize=parameters["max_duration_dict"], doc="Booking max duration")
 model.q_req = pyo.Param(model.V, initialize=parameters["passengers_dict"], doc="Passenger load shift")
-model.r = pyo.Param(model.V, initialize=parameters["price_dict"], doc="Booking price")
+model.r = pyo.Param(model.P, initialize=parameters["price_dict"], doc="Booking price")
 model.C = pyo.Param(model.M, initialize=parameters["capacity_dict"], doc="Max capacity")
 model.tw_driver = pyo.Param(model.M, initialize=parameters["tw_driver_dict"], doc="Shift time window")
 model.R = pyo.Param(model.M, initialize=parameters["max_turnover_dict"], doc="Max driver turnover")
@@ -143,7 +143,7 @@ model.c13 = pyo.Constraint(model.M, rule=c13_rule, doc='Shift end')
 
 
 def c14_rule(model, k):
-    return pyo.inequality(0, sum(model.r[i] * model.x[i, j, k] for i in model.V for j in model.V), model.R[k])
+    return pyo.inequality(0, sum(model.r[i] * model.x[i, j, k] for i in model.P for j in model.V), model.R[k])
 
 
 model.c14 = pyo.Constraint(model.M, rule=c14_rule, doc='Driver turnover constraint')
@@ -161,7 +161,7 @@ model.c15 = pyo.Constraint(rule=c15_rule, doc='No loop constraint')
 def objective_rule(model):
     # Epsilon should be greater than the total possible distance travelled by the whole vehicle fleet
     eps = 1/sum(model.t[i,j] for i in model.S for j in model.S)
-    return sum(model.x[i, j, k] for i in model.V for j in model.V for k in model.M) - eps * sum(
+    return sum(model.x[i, j, k] for i in model.P for j in model.V for k in model.M) - eps * sum(
         model.t[node_to_station[i], node_to_station[j]] * model.x[i, j, k] for i in model.V for j in model.V for k in
         model.M)
 
@@ -171,7 +171,7 @@ model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize, doc='Ob
 
 # Display of the output
 def pyomo_postprocess(options=None, instance=None, results=None):
-    instance.pprint()
+    # instance.pprint()
     # instance.x.display()
     # instance.write(filename='output.json', format='json')
     pass

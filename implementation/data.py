@@ -146,9 +146,6 @@ for booking in bookings:
     for job in booking.jobs:
         if job.job_id <= nb_bookings:
             price_dict[job.job_id] = booking.price
-        else:
-            price_dict[job.job_id] = 0
-price_dict[0] = price_dict[2 * nb_bookings + 1] = 0
 # print(price_dict)
 
 # Correspond to the var m_max : the maximum duration of a booking is defined at 
