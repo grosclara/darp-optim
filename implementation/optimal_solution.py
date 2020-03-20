@@ -92,11 +92,11 @@ def c6_rule(model, i, j, k):
 model.c6 = pyo.Constraint(model.V, model.V, model.M, rule=c6_rule, doc='Coherence visit time')
 
 
-def c7_rule(model, i, k):  # MAYBE
+def c7_rule(model, i, k):
     return pyo.inequality(model.tw[i][0], model.u[i, k], model.tw[i][1])
 
 
-model.c7 = pyo.Constraint(model.V, model.M, rule=c7_rule, doc='Client time window')
+model.c7 = pyo.Constraint(model.PuD, model.M, rule=c7_rule, doc='Client time window')
 
 
 def c8_rule(model, i, k):
@@ -171,8 +171,8 @@ model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize, doc='Ob
 
 # Display of the output
 def pyomo_postprocess(options=None, instance=None, results=None):
-    # instance.pprint()
-    # instance.x.display()
+    instance.pprint()
+    instance.x.display()
     # instance.write(filename='output.json', format='json')
     pass
 
