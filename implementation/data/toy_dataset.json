@@ -4,7 +4,7 @@
       "id": 100,
       "price": 5,
       "passengers": 1,
-      "maximumDuration": 16,
+      "maximumDuration": 1600,
       "jobs": [
         {
           "id": 1,
@@ -32,7 +32,7 @@
       "id": 200,
       "price": 5,
       "passengers": 2,
-      "maximumDuration": 11,
+      "maximumDuration": 1100,
       "jobs": [
         {
           "id": 3,
@@ -60,7 +60,7 @@
       "id": 300,
       "price": 5,
       "passengers": 3,
-      "maximumDuration": 13,
+      "maximumDuration": 1300,
       "jobs": [
         {
           "id": 5,
