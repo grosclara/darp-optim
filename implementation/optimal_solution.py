@@ -1,6 +1,6 @@
 # Import of the pyomo module
 import pyomo.environ as pyo
-from gurobipy import *
+# from gurobipy import *
 from implementation.data import sets, node_to_station, parameters, nb_bookings
 from pyomo.util.infeasible import log_infeasible_constraints
 
@@ -171,7 +171,7 @@ model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize, doc='Ob
 
 # Display of the output
 def pyomo_postprocess(options=None, instance=None, results=None):
-    instance.pprint()
+    # instance.pprint()
     instance.x.display()
     # instance.write(filename='output.json', format='json')
     pass
