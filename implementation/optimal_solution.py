@@ -1,7 +1,7 @@
 # Import of the pyomo module
 import pyomo.environ as pyo
 # from gurobipy import *
-from implementation.data import sets, node_to_station, parameters, nb_bookings
+from data import sets, node_to_station, parameters, nb_bookings
 from pyomo.util.infeasible import log_infeasible_constraints
 
 # Creation of an Abstract Model

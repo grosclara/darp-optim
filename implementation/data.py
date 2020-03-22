@@ -3,7 +3,7 @@ import json
 import pandas
 import numpy
 import json
-from implementation.class_init import Booking, BookingJob, Shift, ShiftJob
+from class_init import Booking, BookingJob, Shift, ShiftJob
 
 with open("data/toy_dataset.json") as json_data:
 # with open("data/day_data.json") as json_data:
