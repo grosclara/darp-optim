@@ -2,16 +2,22 @@
 # -*- coding: utf-8 -*-
 
 from llist import dllist
-from shared_cli import cli
+from cli import *
 from collections import namedtuple
 from heapq import heappush, heappop
 from logging import log, DEBUG
-
 from util import objf, routes2sol
+
+from data import sets, node_to_station, parameters, nb_bookings
+
+print(sets)
+
 
 class _EmergingRouteData:
     """ A data structure to keep all of the data of the route that is being
     constructed in the same place. """
+
+    # type(seed_customers) = Booking
     def __init__(self, seed_customers, D, d):
         self.potential_insertions = []
         if seed_customers:
@@ -157,10 +163,7 @@ def parametrized_insertion_criteria(D, i, u, j, lm, mm):
     return MSAV_c, MST_c
 
 
-def cheapest_insertion_init(D, d, C, L=None, minimize_K=False,
-        emerging_route_count=1, 
-        initialize_routes_with="farthest",
-        
+def cheapest_insertion_init(D, d, C, L=None, minimize_K=True, initialize_routes_with="earliest_pick_up_tw",
         # these callbacks can be used to change how the algorithm works
         insertion_strain_callback=lambda D, i,u,j:\
             parametrized_insertion_criteria(D, i, u, j,1.0,0.0),
@@ -231,9 +234,10 @@ def cheapest_insertion_init(D, d, C, L=None, minimize_K=False,
     """
     
     complete_routes = [] 
-    # Number of request not yet processed      
-    
+        
     # Build a ordered priority queue of potential route initialization nodes
+
+    # Number of request not yet processed      
     unrouted = set(range(1,len(D)))
     
     if initialize_routes_with=="farthest" or initialize_routes_with=="closest":
