@@ -9,78 +9,22 @@
         {
           "id": 1,
           "type": "PickUpJob",
-          "timeWindowBeginDate": 2,
-          "timeWindowEndDate": 4,
+          "timeWindowBeginDate": 300,
+          "timeWindowEndDate": 400,
           "duration": 1,
           "latitude": 49.01606369018555,
           "longitude": 1.6916327476501465,
-          "station": "s3"
+          "station": "s1"
         },
         {
           "id": 2,
           "type": "DropOffJob",
-          "timeWindowBeginDate": 12,
-          "timeWindowEndDate": 20,
+          "timeWindowBeginDate": 300,
+          "timeWindowEndDate": 1000,
           "duration": 1,
           "latitude": 48.989906311035156,
           "longitude": 1.7033958435058594,
-          "station": "s1"
-        }
-      ]
-    },
-    {
-      "id": 200,
-      "price": 5,
-      "passengers": 2,
-      "maximumDuration": 1100,
-      "jobs": [
-        {
-          "id": 3,
-          "type": "PickUpJob",
-          "timeWindowBeginDate": 1,
-          "timeWindowEndDate": 5,
-          "duration": 1,
-          "latitude": 49.038970947265625,
-          "longitude": 1.8017100095748901,
           "station": "s2"
-        },
-        {
-          "id": 4,
-          "type": "DropOffJob",
-          "timeWindowBeginDate": 11,
-          "timeWindowEndDate": 16,
-          "duration": 1,
-          "latitude": 48.98380661010742,
-          "longitude": 1.7153891324996948,
-          "station": "s3"
-        }
-      ]
-    },
-    {
-      "id": 300,
-      "price": 5,
-      "passengers": 3,
-      "maximumDuration": 1300,
-      "jobs": [
-        {
-          "id": 5,
-          "type": "PickUpJob",
-          "timeWindowBeginDate": 1,
-          "timeWindowEndDate": 4,
-          "duration": 1,
-          "latitude": 48.98927307128906,
-          "longitude": 1.715390682220459,
-          "station": "s5"
-        },
-        {
-          "id": 6,
-          "type": "DropOffJob",
-          "timeWindowBeginDate": 11,
-          "timeWindowEndDate": 17,
-          "duration": 1,
-          "latitude": 48.97529983520508,
-          "longitude": 1.6450599431991577,
-          "station": "s4"
         }
       ]
     }
@@ -102,34 +46,11 @@
         {
           "id": 12,
           "type": "ShiftEnd",
-          "timeDate": 30,
+          "timeDate": 2000,
           "latitude": 48.99266052246094,
           "longitude": 1.6903244256973267,
           "station": "s0"
         }
-      ]
-    },
-    {
-      "id": 20,
-      "capacity": 6,
-      "maximumTurnover": 5,
-      "jobs": [
-        {
-          "id": 21,
-          "type": "ShiftBegin",
-          "timeDate": 0,
-          "latitude": 48.99266052246094,
-          "longitude": 1.6903244256973267,
-          "station": "s0"
-        },
-        {
-          "id": 22,
-          "type": "ShiftEnd",
-          "timeDate": 30,
-          "latitude": 48.99266052246094,
-          "longitude": 1.6903244256973267,
-          "station": "s0"
-       }
       ]
     }
   ]
