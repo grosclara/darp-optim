@@ -25,15 +25,15 @@ model.S.construct()
 
 # PARAMETERS
 
-model.t = pyo.Param(model.S, model.S, initialize=parameters["time_table_dict"], doc='Time travel')
-model.e = pyo.Param(model.V, initialize=parameters["duration_dict"], doc="Run time")
-model.tw = pyo.Param(model.V, initialize=parameters["tw_dict"], doc="Booking time window")
-model.m_max = pyo.Param(model.P, initialize=parameters["max_duration_dict"], doc="Booking max duration")
-model.q_req = pyo.Param(model.V, initialize=parameters["passengers_dict"], doc="Passenger load shift")
-model.r = pyo.Param(model.P, initialize=parameters["price_dict"], doc="Booking price")
-model.C = pyo.Param(model.M, initialize=parameters["capacity_dict"], doc="Max capacity")
-model.tw_driver = pyo.Param(model.M, initialize=parameters["tw_driver_dict"], doc="Shift time window")
-model.R = pyo.Param(model.M, initialize=parameters["max_turnover_dict"], doc="Max driver turnover")
+model.t = pyo.Param(model.S, model.S, initialize=parameters["time_table_dict"], within=pyo.Any, doc='Time travel')
+model.e = pyo.Param(model.V, initialize=parameters["duration_dict"], within=pyo.Any, doc="Run time")
+model.tw = pyo.Param(model.V, initialize=parameters["tw_dict"], within=pyo.Any, doc="Booking time window")
+model.m_max = pyo.Param(model.P, initialize=parameters["max_duration_dict"], within=pyo.Any, doc="Booking max duration")
+model.q_req = pyo.Param(model.V, initialize=parameters["passengers_dict"], within=pyo.Any, doc="Passenger load shift")
+model.r = pyo.Param(model.P, initialize=parameters["price_dict"], within=pyo.Any, doc="Booking price")
+model.C = pyo.Param(model.M, initialize=parameters["capacity_dict"], within=pyo.Any, doc="Max capacity")
+model.tw_driver = pyo.Param(model.M, initialize=parameters["tw_driver_dict"], within=pyo.Any, doc="Shift time window")
+model.R = pyo.Param(model.M, initialize=parameters["max_turnover_dict"], within=pyo.Any, doc="Max driver turnover")
 
 # VARIABLES
 
