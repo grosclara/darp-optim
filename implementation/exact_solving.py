@@ -1,6 +1,7 @@
 # Import of the pyomo module
 import pyomo.environ as pyo
 # from gurobipy import *
+import csv
 from data import sets, node_to_station, parameters, nb_bookings
 from pyomo.util.infeasible import log_infeasible_constraints
 
@@ -173,18 +174,15 @@ model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize, doc='Ob
 def pyomo_postprocess(options=None, instance=None, results=None):
     # instance.pprint()
     instance.x.display()
-    # instance.write(filename='output.json', format='json')
+    instance.write()
     pass
 
 
 def run_model():
-    # This emulates what the pyomo command-line tools does
     instance = model.create_instance()
     opt = pyo.SolverFactory("gurobi")
     results = opt.solve(instance, tee=True)
     instance.solutions.load_from(results)
-    # sends results to stdout
-
     print("\nDisplaying Solution\n" + '-' * 60)
     print(log_infeasible_constraints(model))
     pyomo_postprocess(None, instance, results)

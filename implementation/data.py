@@ -1,8 +1,6 @@
 import json
-
 import pandas
 import numpy
-import json
 from class_init import Booking, BookingJob, Shift, ShiftJob
 
 with open("data/day_data.json") as json_data:
