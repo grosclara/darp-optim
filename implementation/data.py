@@ -3,7 +3,7 @@ import pandas
 import numpy
 from class_init import Booking, BookingJob, Shift, ShiftJob
 
-with open("data/day_data.json") as json_data:
+with open("data/toy_dataset.json") as json_data:
 # with open("data/day_data.json") as json_data:
     data_dict = json.load(json_data)
 
@@ -64,10 +64,8 @@ for shift in data_dict['shifts']:
     # Add the Shift s to the shift list
     shifts.append(s)
 
-# print(shifts,nb_shifts)
-
 # TRAVEL TIMES
-time_data = pandas.read_csv("data/travel_times.csv", sep=';')
+time_data = pandas.read_csv("data/toy_travel_times.csv", sep=';')
 # time_data = pandas.read_csv("data/travel_times.csv", sep=';')
 nb_stations = len(time_data)
 
@@ -218,4 +216,3 @@ parameters = {"time_table_dict": time_table_dict, "duration_dict": duration_dict
               "max_duration_dict": max_duration_dict, "passengers_dict": passengers_dict,
               "capacity_dict": capacity_dict, "max_turnover_dict": max_turnover_dict, "tw_driver_dict": tw_driver_dict,
               "tw_dict": tw_dict}
-# print(parameters)

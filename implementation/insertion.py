@@ -8,83 +8,105 @@ from heapq import heappush, heappop
 from logging import log, DEBUG
 from util import objf, routes2sol
 
-from data import sets, node_to_station, parameters, nb_bookings
+from data import sets, node_to_station, parameters, nb_bookings, bookings, shifts
+from class_init import ShiftScheduleBlock
 
-print(sets)
+
+def _initialize_shift_schedules(shifts):
+    schedules = {}
+    for shift in shifts :
+        schedules[shift] = new ShiftScheduleBlock(shift)
+    return schedules
 
 
-class _EmergingRouteData:
-    """ A data structure to keep all of the data of the route that is being
-    constructed in the same place. """
+def _check_capacity_constraint(schedule, booking):
+    #Return also the new capacity
+    return True
 
-    # type(seed_customers) = Booking
-    def __init__(self, seed_customers, D, d):
-        self.potential_insertions = []
-        if seed_customers:
-            lroute = [0]+seed_customers+[0]
-            self.route = dllist(lroute)
-            self.cost = objf(lroute, D)
-            self.used_capacity = sum(d[n] for n in lroute) if d else 0
-        else:
-            self.route = dllist([0,0])
-            self.used_capacity = 0
-            self.cost = 0
+
+def _check_ride_time_constraint(schedule, deviation):
+    return True
+
+
+def _check_turnover_constraint(schedule, booking):
+    #Return also the new turnover
+    return True
+
+def _check_insertion_feasibility(schedule, booking):
+    # Check time window capacity
+    return True
+
+
+def _compute_deviation(travel_time, node_before_pickup, node_before_drop_off, booking, schedule):
+    if node_before_drop_off == node_before_pickup :
+        deviation = - travel_time[node_before_pickup.value, node_before_pickup.next.value] \
+                    + travel_time[node_before_pickup.value, node_to_station[booking.jobs[0].job_id]]\
+                    + travel_time[node_to_station[booking.jobs[0].job_id], node_to_station[booking.jobs[1].job_id]]\
+                    + travel_time[node_to_station[booking.jobs[1].job_id], node_before_drop_off.next.value]\
             
-    @staticmethod
-    def export_solution(route_datas):
-        sol = []
-        for rd in route_datas:
-            if rd and len(rd.route)>2:
-                sol += list(rd.route)[1:]
-        return sol
+    else :
+        deviation_pick_up =  - travel_time[node_to_station[node_before_pickup.value], node_to_station[node_before_pickup.next.value]]\
+                            + travel_time[node_to_station[node_before_pickup.value], node_to_station[booking.jobs[0].job_id]] \
+                            + travel_time[node_to_station[booking.jobs[0].job_id]], node_to_station[node_before_pickup.next.value]]
+        deviation_drop_off =  - travel_time[node_to_station[node_before_drop_off.value], node_to_station[node_before_drop_off.next.value]]\
+                            + travel_time[node_to_station[node_before_drop_off.value], node_to_station[booking.jobs[1].job_id]] \
+                            + travel_time[node_to_station[booking.jobs[1].job_id], node_to_station[node_before_drop_off.next.value]]
+        deviation = deviation_pick_up + deviation_drop_off
 
-def _initialize_new_route(seed_customers, unrouted, D, d):
+    return deviation
+
+
+Insertion = namedtuple('Insertion', ['booking', 'node_before_pick_up', 'node_after_pickup',
+                                    'node_before_drop_off', 'node_after_drop_off',
+                                    'new_capacity', 'new_turnover'])
+
+def _new_potential_insertions(schedule, booking, travel_time):
+
+    # Initialisation of the pick up location
+    node_before_pickup = schedule.route.first
+    while node_before_pickup != schedule.route.last.prev:
+        # Initialisation of the drop off location
+        node_before_drop_off = node_before_pickup
+        while node_before_drop_off != schedule.route.last:
+            
+            insertion_feasibility_checked = _check_insertion_feasibility(schedule, booking)
+            
+            if insertion_feasibility_checked :
+
+                # Do not add infeasible insertions
+                capacity_constraint_checked = _check_capacity_constraint(schedule, booking)
+                turnover_constraint_checked = _check_turnover_constraint(schedule, booking)
+
+                if capacity_constraint_checked & turnover_constraint_checked :
+                    # Compute cost function
+                    deviation = _compute_deviation(travel_time, node_before_pickup, node_before_drop_off, booking, schedule)
+                    # Once the deviation time is computed, check the max ride time for each customer planned on this schedule
+                    ride_time_constraint_checked = _check_ride_time_constraint(deviation, schedule)
+                else :
+                    continue
+
+                if ride_time_constraint_checked:
+                    # Add the potential insertions to the heap
+                    # where to insert nodes, cost function value,
+                    # Build the insertion for the heap
+
+                    insertion = Insertion(customer, node_before_pick_up, node_before_pick_up.next, 
+                                            node_before_drop_off, node_before_drop_off.next,
+                                            new_capacity, new_turnover)
+                    sorting_key = deviation
+                    heappush( schedule.potential_insertion, (sorting_key, insertion) )
+                
+                else :
+                    continue
+            
+            else : 
+                continue
+
+        # update potential drop off node insertion
+        initial_drop_off_after = initial_drop_off_after.next
+    # update potential pick up node insertion
+    initial_pick_up_after = initial_pick_up_after.next
     
-    chosen = []
-    _, candidate = seed_customers.pop()
-    chosen.append(candidate)      
-        
-    # remove duplicates
-    for c in chosen:
-        unrouted.remove(c)
-        
-    return _EmergingRouteData(chosen, D, d)
-
-Insertion = namedtuple('Insertion', ['customer', 'after_node', 'before_node',
-                                     'cost_delta', 'demand_delta'])
-
-def _new_potential_insertions(unrouted, D, d, C, L, rd, after, before,
-                              insertion_strain_callback):
-    for customer in unrouted:
-        # do not add infeasible insertions (note that the insertions, however,
-        #  can become infeasible later!)
-        l_delta =  -D[after.value, before.value]\
-                   +D[after.value, customer]\
-                   +D[customer, before.value]
-        
-        # Check capacity and other constraints (such as max ride time)
-        d_delta = 0.0
-        if C:
-            d_delta = d[customer]
-            if rd.used_capacity+d_delta-C_EPS>C:
-                continue
-        if L:
-            if rd.cost+l_delta-S_EPS > L:                
-                continue
-        
-        # Build the insertion for the heap
-        insertion = Insertion(customer, after, before, l_delta, d_delta)
-        strain, secondary_criterion = insertion_strain_callback(D, after.value,customer,before.value)
-        l_saving =  l_delta-D[0,customer]-D[customer,0]
-        
-        sorting_key = (-strain, secondary_criterion, l_saving)
-        #sorting_key = (-strain, l_saving, secondary_criterion)
-        #sorting_key = (-strain, +D[after.value, customer]
-        #                        +D[customer, before.value], -customer)
-        
-
-        # Heap elements can be tuples. This is useful for assigning comparison values (such as task priorities) alongside the main record being tracked.
-        heappush( rd.potential_insertions, (sorting_key, insertion) )
 
 def _seems_valid_insertion(insertion, route_current_d, unrouted, D, d, C):  
     # The node has been already inserted somewhere
@@ -163,166 +185,88 @@ def parametrized_insertion_criteria(D, i, u, j, lm, mm):
     return MSAV_c, MST_c
 
 
-def cheapest_insertion_init(D, d, C, L=None, minimize_K=True, initialize_routes_with="earliest_pick_up_tw",
-        # these callbacks can be used to change how the algorithm works
-        insertion_strain_callback=lambda D, i,u,j:\
-            parametrized_insertion_criteria(D, i, u, j,1.0,0.0),
-        insert_callback=_try_insert_and_update ):
-    """ 
-    A (Cheapest) Insertion Heuristic.
-    
-    The basic idea is introduced in Mole and Jameson (1976): calculate
-    each cost of inserting an unrouted customer between every possible pair on
-    a route. The one with cheapest insertion cost (based on the some criteria)
-    is then executed. The process is repeated until all nodes have been
-    inserted. The routes are initialized with a visit to the farthest node(s) in respect to the depot.
-    
-    Basic parameters:
-    * D is a numpy ndarray (or equvalent) of the full 2D distance matrix.
-    * d is a list of demands. d[0] should be 0.0 as it is the depot.
-    * C is the capacity constraint limit for the identical vehicles.
-    * L is the optional constraint for the maximum route cost/length/duration.
-    
-    Objective parameter:
-    * minimize_K sets the primary optimization objective. If set to True, it is
-       the minimum number of routes. If set to False (default) the algorithm 
-       optimizes for the mimimum solution/routing cost. In insertion algorithms 
-       this is achieved by not trying to fill the routes completely full if 
-       an insertion candidate is expected to make the overall cost worse.
-       
-    Algorithm specific parameters:
-    * emerging_route_count is the number of routes to be build in parallel, the 
-       default is 1 (the sequential route building heuristic)
-    * initialize_routes_with is set to "farthest" if the emerging route is 
-       needed to be initialized with the node furthest from depot. Other
-       alternatives are: "closest", initialize with the node closest to the
-       depot; "strain" initializes the route using the savings function e.g.
-       "D[i,j]-D[0,i]-D[j,0]" (the unrouted nodes of the savings are used
-       to initialize the route taken). t can also be a function of the form
-       `initialize_routes_with(D, unrouted, rd)`, where rd can be None (for
-       the initial route).
-     
-     Parameters for building extensions:
-     * insertion_strain_callback calculates the insertion "cost". Must return
-        two values. One is the strain, second is the secondary sorting criteria
-     * insert_callback can be used to change which operations are done when a 
-        new customer is inserted on the route. Can be used e.g. to optimize
-        the route after the insertion. Note, that the _EmergingRouteData
-        fields must be updated accordingly. Returns a list of edges that are
-        new and for which new insertions can be made, and for which the
-        insertion strain is calculated with insertion_strain_callback. Check
-        _try_insert_and_update for an example.
-    
-    Therefore:
-      \lambda = 2, \mu = 1 | Generalized Clarke and Wright criterion
-      \lambda = 0, \mu = 1 | Minimum strain criterion
-      1 <= \lambda <= 2, \mu = lambda-1 | Generalized Gaskell criterion
-      \lambda = 0, \mu = 0 | Proximity to two nearest neighbors
-     
-    See (Solomon 1987) for details on the recommendations for values of
-    mu_multiplier and lambda_multiplier. The defaults mu=1.0, lambda=2.0 are
-    those that Solomon reported worked best in his experiments. Solomon (1987)
-    used presented the sequential version of the algorithm (K=1) and also
-    initialized the routes with furthest nodes.
-    
-    Mole, R. and Jameson, S. (1976). A sequential route-building algorithm 
-      employing a generalised savings criterion. Journal of the Operational
-      ResearchSociety, 27(2):503-511.
-     
-    Solomon, M. M. (1987). Algorithms for the vehicle routing and scheduling
-       problems with time window constraints. Operations research, 35(2).
-    """
+def insertion_init(bookings, shifts, initialize_routes_with, parameters):
     
     complete_routes = [] 
         
-    # Build a ordered priority queue of potential route initialization nodes
+    # Build a ordered priority queue of potential route initialization bookings
 
-    # Number of request not yet processed      
-    unrouted = set(range(1,len(D)))
+    # Number of bookings not yet processed
     
-    if initialize_routes_with=="farthest" or initialize_routes_with=="closest":
+    if initialize_routes_with=="earliest_pick_up_tw" :
         # Python3 doesn't support sort method on zip object
-        seed_customers = list(zip(D[0][1:], [(i,) for i in range(1,len(D))]))
-        seed_customers.sort(reverse = initialize_routes_with=="closest")
-    elif callable(initialize_routes_with):
-        seed_customers = initialize_routes_with(D, unrouted, None)
+        seed_bookings = list(zip([booking.jobs[0].tw_start for booking in bookings], [booking.booking_id for booking in bookings]))
+        seed_bookings.sort(reverse=True)
+    elif initialize_routes_with=="latest_drop_off_tw" :
+        seed_bookings = list(zip([booking.jobs[1].tw_end for booking in bookings], [booking.booking_id for booking in bookings]))
+        seed_bookings.sort()
     else:
         raise ValueError("Unknown route initialization method '%s'"%initialize_routes_with)
-        
-    route_datas = _initialize_new_route(seed_customers, unrouted, D, d)
 
-    if __debug__:
-        for ri, rd in enumerate(route_datas):
-            log(DEBUG, "Initialized a new route #%d %s"%(ri, str(list(rd.route))))
+    schedules = _initialize_shift_schedules(shifts)
 
-    
-    
-    try:
         # while there are nodes to insert
-        while len(unrouted)>0:
+        while len(seed_bookings)>0:
+            booking_to_schedule = seed_bookings.pop()
+            for shift in shifts :
+                schedule = schedules[shift]     
+                # Generate the list of insertion candidates
+                if len(schedule.potential_insertions)==0:
+                    """ # Initialisation of the pick up location
+                    initial_pick_up_after = schedule.route.first
+                    while initial_pick_up_after != schedule.route.last.prev:
+                    # Initialisation of the drop off location
+                        initial_drop_off_after = initial_pick_up_after
+                        while initial_drop_off_after != route_datas.route.last:
+                            _new_potential_insertions(booking_to_schedule , initial_pick_up_after , initial_drop_off_after)
+                            initial_drop_off_after = initial_drop_off_after.next
+                        initial_pick_up_after = initial_pick_up_after.next """
 
-            if __debug__:
-                log(DEBUG, "Inserting to route #%d %s"%(k, str(list(route_datas.route))))
-            
-            # Generate the list of insertion candidates just-in-time
-            # (this avoids adding unnecessary candidates).
-            if len(route_datas.potential_insertions)==0:
-                # type(potential_insertion) = heap object
-
-                # Initialisation of the pick up location
-                initial_pick_up_after = route_datas.route.first
-                while initial_pick_up_after != route_datas.route.last:
-                    # Initialisation of the drop off location (check)
-                    initial_drop_off_after = initial_pick_up_after
-                    while initial_drop_off_after != route_datas.route.last:
-                        _new_potential_insertions(unrouted, D, d, C, L, route_datas,
-                                                initial_pick_up_after, initial_drop_off_after,
-                                                insertion_strain_callback)
-                        initial_drop_off_after = initial_drop_off_after.next
-                    initial_pick_up_after = initial_pick_up_after.next
+                    # Build a heap of all possible insertion of booking_to_schedule into the shift schedule
+                    _new_potential_insertions(schedule.route, booking_to_schedule)
                     
-            while len(route_datas.potential_insertions)>0:
-                insertion_succesfull = False
-                # unpack a best candidate from the insertion queue
-                _, insertion = heappop(route_datas.potential_insertions)
+                while len(route_datas.potential_insertions)>0:
+                    insertion_succesfull = False
+                    # unpack a best candidate from the insertion queue
+                    _, insertion = heappop(route_datas.potential_insertions)
                 
-                # Check if it *seems* OK to insert
-                # - The node has been already inserted somewhere
-                # - Something else has already been inserted here, ignore
-                # - And check if inserting would break the C constraint
-                is_ok =  _seems_valid_insertion(insertion, route_datas.used_capacity,
+                    # Check if it *seems* OK to insert
+                    # - The node has been already inserted somewhere
+                    # - Something else has already been inserted here, ignore
+                    # - And check if inserting would break the C constraint
+                    is_ok =  _seems_valid_insertion(insertion, route_datas.used_capacity,
                                                 unrouted, D, d, C)
-                if not is_ok:
-                    continue
+                    if not is_ok:
+                        continue
                 
-                if __debug__:
-                    log(DEBUG-2,"Try insertion %d-%d-%d with l_delta %.2f"% (
-                         insertion.after_node.value, insertion.customer,
-                         insertion.before_node.value, insertion.cost_delta))
+                    if __debug__:
+                        log(DEBUG-2,"Try insertion %d-%d-%d with l_delta %.2f"% (
+                             insertion.after_node.value, insertion.customer,
+                            insertion.before_node.value, insertion.cost_delta))
                    
-                # It is all OK to insert the customer (check L constraint)?
-                insertion_succesfull, new_edges = insert_callback(insertion,
+                    # It is all OK to insert the customer (check L constraint)?
+                    insertion_succesfull, new_edges = insert_callback(insertion,
                                                                   rd,D,L,
                                                                   minimize_K)
                     
-                if insertion_succesfull:
-                    unrouted.remove(insertion.customer)
-                    for from_node, to_node in new_edges:
-                        # insertion changes the route -> new insertions possible
-                        # update the route_datas
-                        _new_potential_insertions(unrouted, D, d, C, L, rd,
+                    if insertion_succesfull:
+                        unrouted.remove(insertion.customer)
+                        for from_node, to_node in new_edges:
+                            # insertion changes the route -> new insertions possible
+                            # update the route_datas
+                            _new_potential_insertions(unrouted, D, d, C, L, rd,
                                                   from_node, to_node,
                                                   insertion_strain_callback)
                 
-                    if __debug__:
-                        log(DEBUG,"Chose to insert n%d resulting in route %s (%.2f)"%
-                                   (insertion.customer, str(list(rd.route)), rd.cost))
-                    break
-                else:
-                    if __debug__:
-                        log(DEBUG-3,"Insertion of n%d would break L constraint."%
-                            insertion.customer)
-                    continue
+                        if __debug__:
+                            log(DEBUG,"Chose to insert n%d resulting in route %s (%.2f)"%
+                                       (insertion.customer, str(list(rd.route)), rd.cost))
+                        break
+                    else:
+                        if __debug__:
+                            log(DEBUG-3,"Insertion of n%d would break L constraint."%
+                                insertion.customer)
+                        continue
                         
             # if are not able to add any more customers to the route,
             #  so start a new route
@@ -349,13 +293,7 @@ def cheapest_insertion_init(D, d, C, L=None, minimize_K=True, initialize_routes_
                     log(DEBUG, "Initialized a new route #%d %s"%
                                (route_index, str(list(rd.route))))
     
-                route_datas[route_index] = rd            
-    except KeyboardInterrupt:  #or SIGINT
-        interrupted_sol = [0]+_EmergingRouteData.export_solution(route_datas)\
-                          +_EmergingRouteData.export_solution(complete_routes)
-        interrupted_sol.extend( routes2sol([n] for n in unrouted
-                                           if n not in interrupted_sol)[1:] )
-        raise KeyboardInterrupt(interrupted_sol)
+                route_datas[route_index] = rd    
                               
     return [0]+_EmergingRouteData.export_solution(route_datas)\
               +_EmergingRouteData.export_solution(complete_routes)
@@ -367,11 +305,10 @@ def get_si_algorithm():
     algo_name = "Insertion heuristic"
     algo_desc = "Mole & Jameson (1976) sequential cheapest insertion heuristic "+\
                 "without local search (van Breedam 1994, 2002)"
-    def call_init(points, D, d, C, L, st, wtt, single, minimize_K):
-        return cheapest_insertion_init(D, d, C, L=L, minimize_K=minimize_K,
-                                       emerging_route_count=1)
+    def call_init(parameters, bookings, shifts, initialize_routes_with):
+        return insertion_init(parameters, bookings, shifts, initialize_routes_with)
     
     return (algo_name, algo_desc, call_init)
 
 if __name__=="__main__":
-    cli(*get_si_algorithm())
+    get_si_algorithm()
