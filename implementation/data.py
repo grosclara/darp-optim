@@ -11,7 +11,7 @@ with open("data/toy_dataset.json") as json_data:
 nb_bookings = len(data_dict['bookings'])
 
 bookings = []
-count = 1  # Give a proper job id
+count = 1  # Give a proper booking id
 for booking in data_dict['bookings']:
     jobs = []
     for job in booking['jobs']:
@@ -25,8 +25,9 @@ for booking in data_dict['bookings']:
         # Retrieve the station
         station = int(job['station'][1:])
 
+
         # Create the BookingJob object
-        j = BookingJob(job['id'], job_id, job['type'],
+        j = BookingJob(job['id'], count, job_id, job['type'],
                        job['timeWindowBeginDate'], job['timeWindowEndDate'],
                        job['duration'], job['latitude'], job['longitude'],
                        station)
