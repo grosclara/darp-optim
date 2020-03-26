@@ -55,12 +55,12 @@ class ShiftScheduleBlock:
     def __init__(self, shift):
         
         self.shift = shift # Shift object (capacity, max_turnover)
-        self.schedule_begin_date = shift["jobs"][0]["time_date"]
-        self.schedule_end_date = shift["jobs"][1]["time_date"]
-        
+
         self.potential_insertions = []
+
         # Route objet : job dans un job : time window capacity
-        self.route = dllist([{"Job":shift.jobs[0],"Used capacity":0, "Turnover":0},{"Job":shift.jobs[1],"Used capacity":0, "Turnover":0}]) #Dépot
+        self.route = dllist([{"Job":shift.jobs[0],"Used capacity":0},{"Job":shift.jobs[1],"Used capacity":0}]) #Dépot
+        self.turnover = 0
         self.cost = 0
 
 """

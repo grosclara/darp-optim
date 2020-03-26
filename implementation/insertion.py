@@ -20,7 +20,24 @@ def _initialize_shift_schedules(shifts):
     return schedules
 
 
-def _check_capacity_constraint(schedule, booking):
+def _check_capacity_constraint(schedule, booking, node_before_pick_up, node_before_drop_off):
+        
+    node = node_before_pick_up.next
+
+    # If pick up and drop off are consecutive nodes
+    if node_before_pick_up == node_before_drop_off :
+        used_capacity = node["Used capacity"] + booking.passengers
+        return used_capacity <= schedule.shift.capacity
+
+    else :
+        stop_to_drop_off = False
+        while node != node_before_drop_off.next :
+            used_capacity = node["Used capacity"] + booking.passengers
+            if not used_capacity <= schedule.shift.capacity :
+                return False
+
+            node = node.next
+
     #Return also the new capacity
     return True
 
@@ -31,7 +48,7 @@ def _check_ride_time_constraint(schedule, deviation):
 
 def _check_turnover_constraint(schedule, booking):
     #Return also the new turnover
-    return True
+    return schedule.turnover + booking.price <= schedule.shift.max_turnover
 
 def _check_insertion_feasibility(schedule, booking):
     # Check time window capacity
@@ -75,7 +92,7 @@ def _new_potential_insertions(schedule, booking, travel_time):
             if insertion_feasibility_checked :
 
                 # Do not add infeasible insertions
-                capacity_constraint_checked = _check_capacity_constraint(schedule, booking)
+                capacity_constraint_checked = _check_capacity_constraint(schedule, booking, node_before_pickup)
                 turnover_constraint_checked = _check_turnover_constraint(schedule, booking)
 
                 if capacity_constraint_checked & turnover_constraint_checked :
@@ -221,7 +238,7 @@ def insertion_init(bookings, shifts, initialize_routes_with, parameters):
             # Once we have the best insertion configuration for the booking_to_schedule in every shift,
             # choose the most relevant shift with the lower cost function
             opt_insertion, min_deviation = None, inf
-            # Carefull tu check if the booking can be inserted somewhere
+            # Carefull to check if the booking can be inserted somewhere
             insertion_feasible = False
             for shift in shifts :
                 schedule = schedules[shift]     
@@ -237,13 +254,13 @@ def insertion_init(bookings, shifts, initialize_routes_with, parameters):
 
             if insertion_feasible:
 
-                _insert_and_update(insertion)
+                _insert_and_update(opt_insertion)
                 if insertion_successful :
-                    seed_bookings.remove(insertion.booking)
+                    seed_bookings.remove(opt_insertion.booking)
 
                 if __debug__:
                     log(DEBUG,"Chose to insert n%d resulting in route %s (%.2f)"%
-                            (insertion.booking, str(list(schedule.route)), schedule.cost))                    
+                            (opt_insertion.booking, str(list(schedule.route)), schedule.cost))                    
                 
             else : 
                 if __debug__:
