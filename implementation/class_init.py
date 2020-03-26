@@ -59,11 +59,9 @@ class ShiftScheduleBlock:
         self.schedule_end_date = shift["jobs"][1]["time_date"]
         
         self.potential_insertions = []
-        
-        self.route = dllist([0,0]) #Dépot
-        self.used_capacity = 0
-        self.turnover = 0
-        self.cost
+        # Route objet : job dans un job : time window capacity
+        self.route = dllist([{"Job":shift.jobs[0],"Used capacity":0, "Turnover":0},{"Job":shift.jobs[1],"Used capacity":0, "Turnover":0}]) #Dépot
+        self.cost = 0
 
 """
         if seed_customer:
