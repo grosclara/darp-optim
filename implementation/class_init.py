@@ -59,6 +59,8 @@ class ShiftScheduleBlock:
 
         self.potential_insertions = []
 
+        self.bookings_processed = []
+
         # Route objet : job dans un job : time window capacity
         self.route = dllist([{"Job":shift.jobs[0],"Used capacity":0},{"Job":shift.jobs[1],"Used capacity":0}]) #Dépot
         self.turnover = 0

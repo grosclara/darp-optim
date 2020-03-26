@@ -43,6 +43,7 @@ def _check_capacity_constraint(schedule, booking, node_before_pick_up, node_befo
 
 
 def _check_ride_time_constraint(schedule, deviation):
+    #Déviation entre deux stations ???
     return True
 
 
@@ -51,11 +52,18 @@ def _check_turnover_constraint(schedule, booking):
     return schedule.turnover + booking.price <= schedule.shift.max_turnover
 
 def _check_insertion_feasibility(schedule, booking):
+    
+
+
+
     # Check time window capacity
     return True
 
 
 def _compute_deviation(travel_time, node_before_pickup, node_before_drop_off, booking, schedule):
+
+    # Compute also execution duration time !!
+
     if node_before_drop_off == node_before_pickup :
         deviation = - travel_time[node_before_pickup.value, node_before_pickup.next.value] \
                     + travel_time[node_before_pickup.value, node_to_station[booking.jobs[0].job_id]]\
