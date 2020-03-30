@@ -87,3 +87,11 @@ class ShiftScheduleBlock:
                 sol += list(rd.route)[1:]
         return sol
  """
+
+ from collections import namedtuple
+
+ Insertion = namedtuple('Insertion', ['booking', 
+                                    'node_before_pick_up', 
+                                    'node_before_drop_off',
+                                    'deviation'
+                                    ])

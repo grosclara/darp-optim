@@ -1,24 +1,24 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from llist import dllist
-from cli import *
-from collections import namedtuple
 from heapq import heappush, heappop
 from logging import log, DEBUG
 from math import inf
-from util import objf, routes2sol
 
 from data import sets, node_to_station, parameters, nb_bookings, bookings, shifts
-from class_init import ShiftScheduleBlock
+from class_init import ShiftScheduleBlock, Insertion
+
+
+############### INITIALIZATION ###############
 
 
 def _initialize_shift_schedules(shifts):
     schedules = {}
     for shift in shifts :
-        schedules[shift] = new ShiftScheduleBlock(shift)
+        schedules[shift] = ShiftScheduleBlock(shift)
     return schedules
 
+
+############### CONSTRAINTS ###############
 
 def _check_capacity_constraint(schedule, booking, node_before_pick_up, node_before_drop_off):
         
@@ -44,6 +44,13 @@ def _check_capacity_constraint(schedule, booking, node_before_pick_up, node_befo
 
 def _check_ride_time_constraint(schedule, deviation):
     #Déviation entre deux stations ???
+
+    #Il faut séparer 3 types de shift
+    #ceux où le drop off est avant--> aucun décalage
+    #ceux où le pick up est avant et le drop off entre les deux > ride time + deviation pick-up
+    #ceux où le pick up est après -> aucun décalage
+    #pour calculer le ride time actuel on utilse AT_drop_off - AT_pick-up
+
     return True
 
 
@@ -51,14 +58,142 @@ def _check_turnover_constraint(schedule, booking):
     #Return also the new turnover
     return schedule.turnover + booking.price <= schedule.shift.max_turnover
 
-def _check_insertion_feasibility(schedule, booking):
-    
+def _check_insertion_feasibility_same_node(travel_time, node_before_pickup, schedule, booking):
+    """cas particulier où node_before_pickup = node_befire_drop_off"""
+
+    jobs_before = []
+    jobs_after = []
+    AT_before_pickup = node_before_pickup.value['Arrival time']
 
 
+    #deviation_pickup = compute_deviation_pickup(travel_time, node_before_pickup, booking, schedule)
+    #deviation_total = _compute_deviation(travel_time, node_before_pickup,node_before_drop_off, booking, schedule)
 
-    # Check time window capacity
+    for node in schedule.route :
+        AT_node = node.value['Arrival time']
+        if AT_node <= AT_before_pickup :
+            jobs_before.append(node.value)
+        else :
+            jobs_after.append(node.value)
+
+    time_route = AT_before_pickup + + node_before_pickup.value.duration
+
+    time_route += travel_time[node_to_station[node_before_pickup.value.job_id], node_to_station[booking.jobs[0].job_id]]
+    if time_route < booking.jobs[0].tw_start :
+        time_route = booking.jobs[0].tw_start + booking.jobs[0].duration
+    elif time_route > booking.jobs[0].tw_end :
+        #on ne peut pas aller chercher la personne dans les contraintes horaires
+        return False
+    else :
+        time_route += booking.jobs[0].duration
+
+    time_route += travel_time[node_to_station[booking.jobs[0].job_id], node_to_station[node_before_pickup.value.job_id]]
+
+    for k in range(len(jobs_after)) :
+        if k == 0 :
+            job_before = node_before_pickup.value
+        else :
+            job_before = jobs_after[k-1]
+        job = jobs_after[k]
+        time_route += travel_time[node_to_station[job_before.job_id], node_to_station[job.job_id]]
+        if time_route < job.tw_start:
+            time_route = job.tw_start + job.duration
+        elif time_route > job.tw_end :
+            return False
+        else :
+            time_route += job.duration
+
     return True
 
+def _check_insertion_feasibility(travel_time, node_before_pickup, node_before_drop_off, schedule, booking):
+    #cette fonction va resortir "AT du client à insérer
+    #les clients impactés sont  ensemble des client privé (drop-off avant le pick-up à insérer)
+    #on regarde les évènements de manière indépendant de si elle sont des drop-off ou des pick-up
+    #3 cas :
+    #évènement <= node_before_pickup  : pas de changement bookings_before
+    #node_before_pickup< évènement <= node_before_drop_off : décalage de deviation pick-up bookings_between
+    #node_before_drop_off < évènement : décalage pick-up + drop_off bookings_after
+
+    #il ne faut pas oublier l'hypothèse ou la voiture était s'était arrêter à une station pour attendre un client -> on doit calculer le temps du nouvel
+    #itinéraire sans partir de AT
+
+    #on construit les listes des différents cas
+
+    jobs_before = []
+    jobs_between = []
+    jobs_after = []
+    AT_before_pickup = node_before_pickup.value['Arrival time']
+    AT_before_drop_off = node_before_drop_off.value['Arrival time']
+
+    #deviation_pickup = compute_deviation_pickup(travel_time, node_before_pickup, booking, schedule)
+    #deviation_total = _compute_deviation(travel_time, node_before_pickup,node_before_drop_off, booking, schedule)
+
+    for node in schedule.route :
+        AT_node = node.value['Arrival time']
+        if AT_node <= AT_before_pickup :
+            jobs_before.append(node.value)
+        elif AT_node <= AT_before_drop_off :
+            jobs_between.append(node.value)
+        else :
+            jobs_after.append(node.value)
+
+    time_route = AT_before_pickup + node_before_pickup.value.duration
+    #on ajoute le délai pour aller à booking
+
+    time_route += travel_time[node_to_station[node_before_pickup.value], node_to_station[booking.jobs[0].job_id]]
+    if time_route < booking.jobs[0].tw_start :
+        time_route = booking.jobs[0].tw_start + booking.jobs[0].duration
+    elif time_route > booking.jobs[0].tw_end :
+        #on ne peut pas aller chercher la personne dans les contraintes horaires
+        return False
+    else :
+        time_route += booking.jobs[0].duration
+
+    for k in range(len(jobs_between)) :
+        if k == 0 :
+            job_before = booking.jobs[0]
+        else :
+            job_before = jobs_between[k-1]
+        job = jobs_between[k]
+        time_route += travel_time[node_to_station[job_before.job_id], node_to_station[job.job_id]]
+        if time_route < job.tw_start:
+            time_route = job.tw_start + job.duration
+        elif time_route > job.tw_end :
+            return False
+        else :
+            time_route += job.duration
+
+     #on doit maintenant s'assurer pour les job après le pick-up que c'est valide
+    if node_before_pickup != node_before_drop_off :
+        time_route += travel_time[node_to_station[node_before_drop_off.value.job_id], node_to_station[booking.jobs[1].job_id]]
+        if time_route < booking.jobs[1].tw_start:
+            time_route = booking.jobs[1].tw_start + booking.jobs[1].duration
+        elif time_route > booking.jobs[1].tw_end:
+            # on ne peut pas aller chercher la personne dans les contraintes horaires
+            return False
+        else:
+            time_route += booking.jobs[1].duration
+    else :
+        time_route += travel_time[node_to_station[booking.jobs[1].job_id], node_before_drop_off.value.job_id] \
+                      + booking.jobs[1].duration
+
+
+    for k in range(len(jobs_after)) :
+        if k == 0 :
+            job_before = booking.jobs[1]
+        else :
+            job_before = jobs_after[k-1]
+        job = jobs_between[k]
+        time_route += travel_time[node_to_station[job_before.job_id], node_to_station[job.job_id]]
+        if time_route < job.tw_start:
+            time_route = job.tw_start + job.duration
+        elif time_route > job.tw_end :
+            return False
+        else :
+            time_route += job.duration
+    return True
+
+############### UTILS ###############
 
 def _compute_deviation(travel_time, node_before_pickup, node_before_drop_off, booking, schedule):
 
@@ -81,57 +216,38 @@ def _compute_deviation(travel_time, node_before_pickup, node_before_drop_off, bo
 
     return deviation
 
-
-Insertion = namedtuple('Insertion', ['booking', 'node_before_pick_up', 'node_after_pickup',
-                                    'node_before_drop_off', 'node_after_drop_off',
-                                    'deviation','new_capacity', 'new_turnover'])
-
 def _new_potential_insertions(schedule, booking, travel_time):
 
-    # Initialisation of the pick up location
-    node_before_pickup = schedule.route.first
-    while node_before_pickup != schedule.route.last.prev:
-        # Initialisation of the drop off location
-        node_before_drop_off = node_before_pickup
-        while node_before_drop_off != schedule.route.last:
+    # Initialization of the pick up location
+    node_before_pickup = schedule[1].route.first # first possible node before pick up == start warehouse
+    while node_before_pickup != schedule[1].route.last: # last possible node before pick up == end warehouse (right before drop off node)
+
+        # Initialisation of the drop off location 
+        node_before_drop_off = node_before_pickup # first possible node before drop off == start warehouse (right after pick up node)
+        while node_before_drop_off != schedule.route.last: # last possible node before pick up == end warehouse
             
-            insertion_feasibility_checked = _check_insertion_feasibility(schedule, booking)
+            # Do not add infeasible insertions
+            capacity_constraint_checked = _check_capacity_constraint(schedule, booking, node_before_pickup)
+            turnover_constraint_checked = _check_turnover_constraint(schedule, booking)
+            insertion_feasible = _check_insertion_feasibility(schedule, booking)
+            ride_time_constraint_checked = _check_ride_time_constraint()
             
-            if insertion_feasibility_checked :
-
-                # Do not add infeasible insertions
-                capacity_constraint_checked = _check_capacity_constraint(schedule, booking, node_before_pickup)
-                turnover_constraint_checked = _check_turnover_constraint(schedule, booking)
-
-                if capacity_constraint_checked & turnover_constraint_checked :
-                    # Compute cost function
-                    deviation = _compute_deviation(travel_time, node_before_pickup, node_before_drop_off, booking, schedule)
-                    # Once the deviation time is computed, check the max ride time for each customer planned on this schedule
-                    ride_time_constraint_checked = _check_ride_time_constraint(deviation, schedule)
-                else :
-                    continue
-
-                if ride_time_constraint_checked:
+            if capacity_constraint_checked & turnover_constraint_checked & insertion_feasible & ride_time_constraint_checked :
+                    # Compute the cost function
+                    deviation = _compute_deviation(travel_time, node_before_pickup, node_before_drop_off, booking, schedule)  
                     # Add the potential insertions to the heap
-                    # where to insert nodes, cost function value,
-                    # Build the insertion for the heap
-
-                    insertion = Insertion(booking, node_before_pick_up, node_before_pick_up.next, 
-                                            node_before_drop_off, node_before_drop_off.next,
-                                            deviation, new_capacity, new_turnover)
+                    insertion = Insertion(booking, node_before_pick_up, node_before_drop_off, deviation)
                     sorting_key = deviation
-                    heappush( schedule.potential_insertions, (sorting_key, insertion) )
-                
-                else :
-                    continue
-            
-            else : 
-                continue
+                    heappush( schedule[1].potential_insertions, (sorting_key, insertion) )
 
-        # update potential drop off node insertion
-        initial_drop_off_after = initial_drop_off_after.next
-    # update potential pick up node insertion
-    initial_pick_up_after = initial_pick_up_after.next
+            else :
+                if __debug__ :
+                    log(DEBUG-2,("Rejecting this configuration"))
+
+        # Update potential drop off node insertion
+        node_before_drop_off = node_before_drop_off.next
+    # Update potential pick up node insertion
+    node_before_pickup = node_before_pickup.next
 
 
 def _seems_valid_insertion(insertion, route_current_d, unrouted, D, d, C):  
@@ -182,140 +298,72 @@ def _try_insert_and_update(insertion, rd, D, L, minimize_K):
         return True, new_edges
 
 
-def parametrized_insertion_criteria(D, i, u, j, lm, mm):
-    """ Mole and Jameson (1976) insertion criteria.
-    
-    i = insert after this customer / depot
-    u = insert this customer 
-    j = insert before this customer / depot
-    
-    * lm = lambda_multiplier (>=0) defines how strongly one prefers routes that
-       visit just one customer.
-    * mm = mu_multiplier (>=0)  is similar to the lambda of the savings algorithm. 
-       It defines how much the edge that needs to be removed to make the  
-       insertion weights when calculating the insertion cost.
-    
-    Note that we do this in one pass with min( -lambda*c_0_u + e(i,u,j) )
-    instead of first calculating e(r,u,s) = min(e(i,u,j)) \forall i,j first and
-    then computing  max( lambda*c_0_u - e(r,u,s) ) = max(sigma(i,u,s)).
-    
-    The reason is twofold. First, the best insertion position for u may be
-    taken by other customer, which means that we should keep track on where
-    to update it. Second the one pass scheme is equivalent, as the customer 
-    with the best (maximal) criteria (l*) is always the best among different
-    u as the c_0,u is the same \forall u therefore making the min(e(i,u,j)) 
-    the decisive factor also in the one pass mode.
-    """ 
-    MST_c = D[i,u]+D[u,j]-mm*D[i,j]
-    MSAV_c = lm*D[0,u]-MST_c
-    return MSAV_c, MST_c
+############### INSERTION HEURISTICS ###############
 
 
-def insertion_init(bookings, shifts, initialize_routes_with, parameters):
-    
-    complete_routes = [] 
-        
-    # Build a ordered priority queue of potential route initialization bookings
+def insertion_init(parameters, bookings, shifts):
 
-    # Number of bookings not yet processed
-    
-    if initialize_routes_with=="earliest_pick_up_tw" :
-        # Python3 doesn't support sort method on zip object
-        seed_bookings = list(zip([booking.jobs[0].tw_start for booking in bookings], [booking.booking_id for booking in bookings]))
-        seed_bookings.sort(reverse=True)
-    elif initialize_routes_with=="latest_drop_off_tw" :
-        seed_bookings = list(zip([booking.jobs[1].tw_end for booking in bookings], [booking.booking_id for booking in bookings]))
-        seed_bookings.sort()
-    else:
-        raise ValueError("Unknown route initialization method '%s'"%initialize_routes_with)
-
+    # Generate the list of initial schedule for each shift (from warehouse to warehouse)
     schedules = _initialize_shift_schedules(shifts)
-
-        # while there are nodes to insert
-        while len(seed_bookings)>0:
-            booking_to_schedule = seed_bookings.pop()
-
-            for shift in shifts :
-                schedule = schedules[shift]     
-                # Generate the list of insertion candidates
-                if len(schedule.potential_insertions)==0:
-
-                    # Build a heap of all possible insertion of booking_to_schedule into the shift schedule
-                    _new_potential_insertions(schedule.route, booking_to_schedule)
             
-            # Once we have the best insertion configuration for the booking_to_schedule in every shift,
-            # choose the most relevant shift with the lower cost function
-            opt_insertion, min_deviation = None, inf
-            # Carefull to check if the booking can be inserted somewhere
-            insertion_feasible = False
-            for shift in shifts :
-                schedule = schedules[shift]     
-                if len(schedule.potential_insertions) == 0:
-                    continue
-                else :
-                    insertion_feasible = True
-                    # unpack a best candidate from the insertion queue
-                    _, insertion = headpop(shift.potential_insertions)
-                    if insertion.deviation < min_deviation:
-                        min_deviation = insertion.deviation
-                        opt_insertion = insertion
+    # Build an ordered priority queue of potential bookings to initialize a route
+    # Bookings are sorted according to their earliest pick up time windows
+    seed_bookings = list(zip([booking.jobs[0].tw_start for booking in bookings], [booking.booking_id for booking in bookings]))
+    seed_bookings.sort(reverse=True)
 
-            if insertion_feasible:
+    # Process each booking 
+    # While there are unprocessed bookings :
+    while len(seed_bookings)>0 :
 
-                _insert_and_update(opt_insertion)
-                if insertion_successful :
-                    seed_bookings.remove(opt_insertion.booking)
+        booking_to_schedule = seed_bookings.pop()
 
-                if __debug__:
-                    log(DEBUG,"Chose to insert n%d resulting in route %s (%.2f)"%
-                            (opt_insertion.booking, str(list(schedule.route)), schedule.cost))                    
-                
-            else : 
-                if __debug__:
-                    log(DEBUG-2,"Booking rejected")
+        # Generate the potential insertions of booking_to_schedule for each shift
+        for schedule in schedules.items() :
+            _new_potential_insertions(schedule, booking_to_schedule, parameters["time_table_dict"], node_to_station)
             
-                    
-                
-                        
-            # if are not able to add any more customers to the route,
-            #  so start a new route
-            insertions_exhausted = len(rd.potential_insertions)==0
-            if insertions_exhausted and len(unrouted)>0:
-                if __debug__:
-                    log(DEBUG,"Route #%d finished as %s (%.2f)"%
-                        (k, str(list(rd.route)), rd.cost))
-                complete_routes.append(rd)
+        # Choose the most relevant shift with the lower cost function in which to insert booking_to_schedule
+        opt_insertion, min_deviation = None, inf
+        for schedules in schedules.items() :
+            if len(schedule[1].potential_insertions) == 0: # Can't insert booking_to_schedule in this shift schedule
+                continue
+            else :
+                # Unpack the best candidate from the insertion heap
+                _, insertion = headpop(schedule[1].potential_insertions)
+                if insertion.deviation < min_deviation:
+                    min_deviation = insertion.deviation
+                    opt_insertion = insertion
 
-                # Some seed initializations rely on the state of the completed
-                #  routes. Then, we can use initialize_routes_with callback 
-                #  to generate more seed(s).
-                if not seed_customers:
-                    if callable(initialize_routes_with):
-                        seed_customers = initialize_routes_with(D, unrouted,
-                                                                complete_routes)
-                    else:
-                        raise StopIteration("Ran out of seed nodes before all"+
-                                            "customers were routed")
-                
-                rd = _initialize_new_route(seed_customers, unrouted, D, d)
+        if opt_insertion != None : # Check if the booking can be inserted somewhere
+
+            if __debug__:
+                log(DEBUG,"Chose to insert n%d resulting in route %s (%.2f)"%
+                        (opt_insertion.booking, str(list(schedule.route)), schedule.cost))         
+
+            # Insert the booking_to_schedule in the chosen schedule and update its characteristics
+            _insert_and_update(schedule, opt_insertion)
+
+            if insertion_successful :
+                seed_bookings.remove(opt_insertion.booking) 
+            else :           
                 if __debug__:
-                    log(DEBUG, "Initialized a new route #%d %s"%
-                               (route_index, str(list(rd.route))))
-    
-                route_datas[route_index] = rd    
+                    log(DEBUG-2,"Problem while insert booking !!!")
+                
+        else : 
+            if __debug__:
+                log(DEBUG-2,"Booking rejected") 
+
                               
-    return [0]+_EmergingRouteData.export_solution(route_datas)\
-              +_EmergingRouteData.export_solution(complete_routes)
+    return schedules
+
 
 
 # ---------------------------------------------------------------------
-# Wrapper for the command line user interface (CLI)
 def get_si_algorithm():
     algo_name = "Insertion heuristic"
     algo_desc = "Mole & Jameson (1976) sequential cheapest insertion heuristic "+\
                 "without local search (van Breedam 1994, 2002)"
-    def call_init(parameters, bookings, shifts, initialize_routes_with):
-        return insertion_init(parameters, bookings, shifts, initialize_routes_with)
+    def call_init(parameters, bookings, shifts):
+        return insertion_init(parameters, bookings, shifts)
     
     return (algo_name, algo_desc, call_init)
 
