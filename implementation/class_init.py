@@ -49,6 +49,8 @@ class ShiftJob:
     def __repr__(self):
         return str(self.long_id)
 
+from llist import dllist
+
 class ShiftScheduleBlock:
     """ A data structure to keep all of the data of the route that is being
     constructed in the same place. """
