@@ -10,11 +10,10 @@ from class_init import ShiftScheduleBlock, Insertion
 
 ############### INITIALIZATION ###############
 
-
 def _initialize_shift_schedules(shifts):
-    schedules = {}
+    schedules = []
     for shift in shifts :
-        schedules[shift] = ShiftScheduleBlock(shift)
+        schedules.append(ShiftScheduleBlock(shift))
     return schedules
 
 
@@ -22,23 +21,21 @@ def _initialize_shift_schedules(shifts):
 
 def _check_capacity_constraint(schedule, booking, node_before_pick_up, node_before_drop_off):
         
-    node = node_before_pick_up.next
-
     # If pick up and drop off are consecutive nodes
     if node_before_pick_up == node_before_drop_off :
-        used_capacity = node["Used capacity"] + booking.passengers
+        used_capacity = node_before_pick_up.value["Used capacity"] + booking.passengers
         return used_capacity <= schedule.shift.capacity
 
+    # If pick up and drop off node are separated by at least one station
     else :
-        stop_to_drop_off = False
-        while node != node_before_drop_off.next :
-            used_capacity = node["Used capacity"] + booking.passengers
+        # Check shift capacity between pick up and drop off nodes
+        node = node_before_pick_up # Initialize checking at node before pick up
+        while node != node_before_drop_off : # Terminate checking at node before drop off
+            used_capacity = node.value["Used capacity"] + booking.passengers
             if not used_capacity <= schedule.shift.capacity :
                 return False
-
             node = node.next
 
-    #Return also the new capacity
     return True
 
 
@@ -219,10 +216,10 @@ def _compute_deviation(travel_time, node_before_pickup, node_before_drop_off, bo
 def _new_potential_insertions(schedule, booking, travel_time):
 
     # Initialization of the pick up location
-    node_before_pickup = schedule[1].route.first # first possible node before pick up == start warehouse
-    while node_before_pickup != schedule[1].route.last: # last possible node before pick up == end warehouse (right before drop off node)
+    node_before_pickup = schedule.route.first # first possible node before pick up == start warehouse
+    while node_before_pickup != schedule.route.last: # last possible node before pick up == end warehouse (right before drop off node)
 
-        # Initialisation of the drop off location 
+        # Initialization of the drop off location 
         node_before_drop_off = node_before_pickup # first possible node before drop off == start warehouse (right after pick up node)
         while node_before_drop_off != schedule.route.last: # last possible node before pick up == end warehouse
             
@@ -250,33 +247,9 @@ def _new_potential_insertions(schedule, booking, travel_time):
     node_before_pickup = node_before_pickup.next
 
 
-def _seems_valid_insertion(insertion, route_current_d, unrouted, D, d, C):  
-    # The node has been already inserted somewhere
-    if not insertion.customer in unrouted:
-        if __debug__:
-            log(DEBUG-3,"Customer n%d is already routed."%insertion.customer)
-        return False
-    
-    # Something else has already been inserted here, ignore
-    if insertion.after_node.next != insertion.before_node:
-        if __debug__:
-            log(DEBUG-3,"Chain n%d-n%d-n%d is no longer possible."%
-                      (insertion.after_node.value, insertion.customer, insertion.before_node.value))
-        return False
-    
-    # Also the available capacity may have changed,
-    #  check if inserting would break a constraint
-    if C:
-        d_inc = d[insertion.customer]
-        if route_current_d+d_inc-C_EPS>C:
-            if __debug__:
-                log(DEBUG-3,"Insertion of n%d would break C constraint."%insertion.customer)
-            return False
-    
-    return True
+def _insert_and_update(insertion, opt_insertion):
 
 
-def _try_insert_and_update(insertion, rd, D, L, minimize_K):
     if not minimize_K:
         # Compared to a solution where the customer is served individually
         insertion_cost = insertion.cost_delta\
@@ -318,17 +291,17 @@ def insertion_init(parameters, bookings, shifts):
         booking_to_schedule = seed_bookings.pop()
 
         # Generate the potential insertions of booking_to_schedule for each shift
-        for schedule in schedules.items() :
+        for schedule in schedules :
             _new_potential_insertions(schedule, booking_to_schedule, parameters["time_table_dict"], node_to_station)
             
         # Choose the most relevant shift with the lower cost function in which to insert booking_to_schedule
         opt_insertion, min_deviation = None, inf
-        for schedules in schedules.items() :
-            if len(schedule[1].potential_insertions) == 0: # Can't insert booking_to_schedule in this shift schedule
+        for schedule in schedules :
+            if len(schedule.potential_insertions) == 0: # Can't insert booking_to_schedule in this shift schedule
                 continue
             else :
                 # Unpack the best candidate from the insertion heap
-                _, insertion = headpop(schedule[1].potential_insertions)
+                _, insertion = headpop(schedule.potential_insertions)
                 if insertion.deviation < min_deviation:
                     min_deviation = insertion.deviation
                     opt_insertion = insertion
