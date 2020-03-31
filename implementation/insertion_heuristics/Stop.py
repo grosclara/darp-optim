@@ -20,10 +20,10 @@ class Stop:
         return self.st
 
     def getDT(self):
-        if self.pickup:
+        if self.pick_up:
             return 0
         else:
-            return self.meal.getDDT()
+            return self.booking.getDPT()
 
     def getR(self):
         return abs(min(self.st-self.getET(),0))
@@ -33,16 +33,16 @@ class Stop:
 
 
     def getET(self):
-        if self.pickup:
-            return self.meal.getEPT()
+        if self.pick_up:
+            return self.booking.getEPT()
         else:
-            return self.meal.getEDT()
+            return self.booking.getEDT()
 
     def getLT(self):
-        if self.pickup:
-            return self.meal.getLPT()
+        if self.pick_up:
+            return self.booking.getLPT()
         else:
-            return self.meal.getLDT()
+            return self.booking.getLDT()
 
     def getNode(self):
         return self.node
@@ -81,7 +81,7 @@ class Stop:
         self.st += shift
 
     def isPickup(self):
-        return self.pickup
+        return self.pick_up
 
 
     def __str__(self):

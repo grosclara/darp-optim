@@ -40,7 +40,7 @@ class Darp:
         shift.addIntoSameBlock(booking,self)
         shift.addIntoDifferentBlocks(booking)
     
-    def findBestCarSchedule(self,shift,booking):
+    def findBestShiftSchedule(self,shift,booking):
 
         bestInsertion = [float("inf")]
         feasInserts = shift.getFeasibleSchedules()
@@ -68,8 +68,8 @@ class Darp:
             Rmin=max(block.getR(),Rmin)
             Amax=min(block.getA(),Amax)
             deviation += block.calcDeviation()
-            nbrOfCustomers += block.getNbrOfMeals()
-        ui=self.getUi(meal.getEPT())
+            nbrOfCustomers += block.getNbrOfPassengers()
+        ui=self.getUi(booking.getEPT())
         aStar = round(-(-self.constants["c1"]*nbrOfCustomers-2*self.constants["c2"]*deviation + \
                         (self.constants["c6"]+self.constants["c8"]*ui)*I)/ \
                       (2*self.constants["c2"])*nbrOfCustomers)
@@ -111,14 +111,15 @@ class Darp:
         z=0
         for block in schedule:
             z+=block.calcServiceTime()
-        z-=car.getServiceTime()
-        ui=self.getUi(meal.getEPT())
+        z-=shift.getServiceTime()
+        ui=self.getUi(booking.getEPT())
         return z*(self.constants["c5"]-self.constants["c6"])+ui*z*(self.constants["c7"]-self.constants["c8"])
 
 
-    def disutilityFuncBooking(self, booking, pickup, delivery):
-        x = booking.getDDT() - delivery.getST()
-        y = delivery.getST() - pickup.getST() - booking.getDRT()
+    def disutilityFuncBooking(self, booking, pick_up, delivery):
+        #to change
+        x = booking.getDPT() - delivery.getST()
+        y = delivery.getST() - pick_up.getST() - booking.getDRT()
         dud = self.constants["c1"]*x + self.constants["c2"]*x*x
         dur = self.constants["c3"]*y + self.constants["c4"]*y*y
         return dud + dur
@@ -129,18 +130,18 @@ class Darp:
 
     def getUi(self,ept):
         custInSys = 0
-        carsAvailable = 0
-        for meal in self.meals:
-            if ept-self.constants["W1"] <=meal.getEPT() <= ept+self.constants["W2"] or \
-                                            ept-self.constants["W1"] <=meal.getLDT() <= ept+self.constants["W2"]:
+        shiftsAvailable = 0
+        for booking in self.bookings:
+            if ept-self.constants["W1"] <=booking.getEPT() <= ept+self.constants["W2"] or \
+                                            ept-self.constants["W1"] <=booking.getLDT() <= ept+self.constants["W2"]:
                 custInSys += 1
-        for car in self.cars:
-            if car.getStart() <= ept+self.constants["W2"] or \
-                                    ept-self.constants["W1"] <=car.getEnd():
-                carsAvailable += 1
+        for shift in self.shifts:
+            if shift.getStart() <= ept+self.constants["W2"] or \
+                                    ept-self.constants["W1"] <=shift.getEnd():
+                shiftsAvailable += 1
 
         #carsAvailable !=0 because otherwise the initial algorithm would not proceed in the first place
-        return custInSys/carsAvailable
+        return custInSys/shiftsAvailable
 
     def removePastStops(self,time):
         for car in self.cars:

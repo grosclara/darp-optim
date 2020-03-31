@@ -1,3 +1,8 @@
+from Stop import *
+from Block import *
+
+from copy import deepcopy
+
 class Shift:
 
     def __init__(self, long_id, capacity, max_turnover, depots, travel_time):
@@ -7,8 +12,8 @@ class Shift:
         self.max_turnover = max_turnover
         self.depots = depots
         self.travel_time = travel_time
-        self.start = self.jobs[0].time_date
-        self.end = self.jobs[1].time_date
+        self.start = self.depots[0].time_date
+        self.end = self.depots[1].time_date
 
         #self.depot = depot
 
@@ -35,7 +40,7 @@ class Shift:
         self.currentSchedule = schedule
         i = 0
         stop1 = self.currentSchedule[0].getFirstStop()
-        dist = self.graph.dist(self.depot, stop1.getNode())
+        dist = self.travel_time[self.depots[0].station, stop1.getNode().station]
         timeDiff = stop1.getST() - self.start
         slack = timeDiff - dist
         self.currentSchedule[0].setPrevSlack(slack)
@@ -43,7 +48,7 @@ class Shift:
             stop1 = self.currentSchedule[i].getLastStop()
             stop2 = self.currentSchedule[i + 1].getFirstStop()
             timeDiff = stop2.getST() - stop1.getST()
-            dist = self.graph.dist(stop1.getNode(), stop2.getNode())
+            dist = self.travel_time[stop1.getNode().station, stop2.getNode().station]
             slack = timeDiff - dist
             if slack != 0:
                 self.currentSchedule[i].setNextSlack(slack)
@@ -54,7 +59,7 @@ class Shift:
                 self.currentSchedule.remove(block)
                 self.currentSchedule[i].blockFusion(block)
         stop2 = self.currentSchedule[-1].getLastStop()
-        dist = self.graph.dist(stop2.getNode(), self.depot)
+        dist = self.travel_time[stop2.getNode().station, self.depots[1].station]
         timeDiff = self.end - stop2.getST()
         slack = timeDiff - dist
         self.currentSchedule[-1].setNextSlack(slack)
@@ -95,7 +100,7 @@ class Shift:
         # return
 
 
-    def addIntoDifferentBlocks(self, meal):
+    def addIntoDifferentBlocks(self, booking):
 
         # pickup and delivery are in different blocks
         i = 0
@@ -115,18 +120,18 @@ class Shift:
                 for pickupIndex in range(initBlockLength):
                     p=block.getStopAt(pickupIndex)
                     q=block.getStopAt(pickupIndex+1)
-                    deltaP = self.graph.dist(p.getNode(), meal.getChef()) + \
-                             self.graph.dist(meal.getChef(), q.getNode()) - \
-                             self.graph.dist(p.getNode(), q.getNode())
+                    deltaP = self.travel_time[p.getNode().station, booking.getPickUp().station] + \
+                             self.travel_time[booking.getPickUp().station, q.getNode().station] - \
+                             self.travel_time[p.getNode().station, q.getNode().station]
                     for deliveryIndex in range(destinationBlockIndex,d-1):
                         g=block.getStopAt(deliveryIndex)
                         h=block.getStopAt(deliveryIndex+1)
-                        deltaD= self.graph.dist(g.getNode(),meal.getDestination()) + \
-                                self.graph.dist(meal.getDestination(),h.getNode()) - \
-                                self.graph.dist(g.getNode(),h.getNode())
+                        deltaD = self.travel_time[g.getNode().station, booking.getDropOff().station] + \
+                                 self.travel_time[booking.getDropOff().station, h.getNode().station] - \
+                                 self.travel_time[g.getNode().station, h.getNode().station]
                         if deltaD+deltaP<=slack:
-                            stop1 = Stop(meal.getChef(), 0, meal, True)
-                            stop2 = Stop(meal.getDestination(), 1, meal, False)
+                            stop1 = Stop(booking.getPickUp(), 0, booking, True)
+                            stop2 = Stop(booking.getDropOff(), 1, booking, False)
                             block.insertStop(pickupIndex+1,stop1)
                             block.insertStop(deliveryIndex+1,stop2)
                             if self.verifyInsertionForDifferentTimeBlocks(block,d):
@@ -160,19 +165,19 @@ class Shift:
         charge=0
         while r<d and feasible:
             t=block.getStopAt(r)
-            t.setST(t_rMinus1.getST()+self.graph.dist(t_rMinus1.getNode(),t.getNode()))
+            t.setST(t_rMinus1.getST()+self.travel_time[t_rMinus1.getNode().station,t.getNode().station])
             Rr=abs(min(t.getST()-t.getET(),0))
             Ar=t.getLT()-t.getST()
             Rmin=max(Rr,Rmin)
             Amax=min(Ar,Amax)
             if t.isPickup():
                 charge+=1
-                latestTime[t.getMeal()] = t.getST() + t.getMeal().getMRT()
+                latestTime[t.getBooking()] = t.getST() + t.getBooking().getMRT()
             else:
-                if t.getST()>latestTime[t.getMeal()]:
+                if t.getST()>latestTime[t.getBooking()]:
                     feasible= False
                 charge-=1
-            if Rmin<=Amax and charge<=self.maxCharge:
+            if Rmin<=Amax and charge<=self.capacity:
                 t_rMinus1=t
             else:
                 feasible= False
@@ -191,7 +196,7 @@ class Shift:
         First insertion to the schedule
         """
         if self.start + self.travel_time[self.depots[0].station, booking.getPickUp().station] <= booking.getLPT() \
-            and (self.start + self.travel_time[self.depots[0].station, booking.getPickUp().station] + booking.getDRT() + self.travel_time[booking.getDropOff().station, self.depots[1].station] ) <= self.end \
+            and (self.start + self.travel_time[self.depots[0].station, booking.getPickUp().station] + booking.getDRT() + self.travel_time[booking.getDropOff().station, self.depots[1].station] ) <= self.end :
 
             stop1 = Stop(booking.getPickUp(), booking.getDPT(), booking, True)
             stop2 = Stop(booking.getDropOff(), booking.getDPT() + booking.getDRT(), booking, False)
@@ -203,7 +208,7 @@ class Shift:
 
             self.feasibleSchedules.append([block])
 
-    def case1(self, meal, scheduler):
+    def case1(self, booking, scheduler):
         """
         Following logic of algorithm case 1
         """
@@ -212,64 +217,63 @@ class Shift:
         schedule = deepcopy(self.currentSchedule)
         block = schedule[-1]
         lastNode = block.getLastStop().getNode()
-        if block.getEnd() + self.graph.dist(lastNode, meal.getChef()) < meal.getLPT() and \
-                                                block.getEnd() + self.graph.dist(lastNode, meal.getChef()) \
-                                        + meal.getDRT() + self.graph.dist(meal.getDestination(), self.depot) < \
-                        self.end:
-            tpu = block.getEnd() + self.graph.dist(lastNode, meal.getChef())
-            td = tpu + meal.getDRT()
+        if block.getEnd() + self.travel_time[lastNode.station, booking.getPickUp().station] < booking.getLPT() and \
+            block.getEnd() + self.travel_time[lastNode.station, booking.getPickUp().station] + booking.getDRT() \
+                + self.travel_time[booking.getDropOff().station, self.depots[1].station] < self.end :
+
+            tpu = block.getEnd() + self.travel_time[lastNode.station, booking.getPickUp().station]
+            td = tpu + booking.getDRT()
             # ddt or dpt
             shift = 0
             w = 0
-            if td <= meal.getLDT():
-                tpu = meal.getLDT() - meal.getDRT()
-                td = meal.getLDT()
-                w = tpu - block.getEnd() - self.graph.dist(lastNode, meal.getChef())
+            if td <= booking.getLDT():
+                tpu = booking.getLDT() - booking.getDRT()
+                td = booking.getLDT()
+                w = tpu - block.getEnd() - self.travel_time[lastNode.station, booking.getPickUp().station]
                 if scheduler.getConstant("c2") != 0:
                     shift = max((scheduler.getConstant("c6") +
                                  scheduler.getConstant("c8") * scheduler.getUi(
-                                     meal.getEPT())) / 2 * scheduler.getConstant("c2"), 0)
-                    shift = min(shift, w, meal.getDeviation())
+                                     booking.getEPT())) / 2 * scheduler.getConstant("c2"), 0)
+                    shift = min(shift, w, booking.getDeviation())
                     tpu -= shift
                     td -= shift
 
                 else:
                     if scheduler.getConstant("c1") < scheduler.getConstant("c6") \
-                            + scheduler.getConstant("c8") * scheduler.getUi(meal.getEPT()):
-                        w = max(0, w - meal.getDeviation())
-                        tpu = block.getEnd() + self.graph.dist(lastNode, meal.getChef()) + w
-                        td = tpu + meal.getDRT()
+                            + scheduler.getConstant("c8") * scheduler.getUi(booking.getEPT()):
+                        w = max(0, w - booking.getDeviation())
+                        tpu = block.getEnd() + self.travel_time[lastNode.station, booking.getPickUp().station] + w
+                        td = tpu + booking.getDRT()
 
             else:
-                shift = tpu - meal.getLDT()
+                shift = tpu - booking.getLDT()
                 if shift > block.getLastStop().getBUP():
                     return False
                 else:
-                    td = meal.getLDT()
-                    tpu = td - meal.getDRT()
+                    td = booking.getLDT()
+                    tpu = td - booking.getDRT()
                     ps = -shift
                     block.shiftSchedule(ps)
                     # for stop in block:
                     #     stop.shiftST(ps)
 
-            stop1 = Stop(meal.getChef(), tpu, meal, True)
-            stop2 = Stop(meal.getDestination(), td, meal, False)
-            if w != 0:  # after the current last stop there will be slack time -> create new block
-                bb = Block(stop1, stop2, w, self.end - stop2.getST() - self.graph.dist(self.depot,
-                                                                                       stop2.getNode()))
+            stop1 = Stop(booking.getPickUp(), tpu, booking, True)
+            stop2 = Stop(booking.getDropOff(), td, booking, False)
+            if w != 0:  # after the current last stop there will be slack time -> create new block #depots 0 ou 1 ??
+                bb = Block(stop1, stop2, w, self.end - stop2.getST() - self.travel_time[self.depots[1].station, stop2.getNode().station])
                 block.setNextSlack(w)
                 schedule.append(bb)
                 self.feasibleSchedules.append(schedule)
                 return True
 
-            if block.getNbrOfMeals() < self.maxCharge:
+            if block.getNbrOfPassengers() < self.capacity:
                 # the 2 stops become the last 2 stops in the block and the schedule
                 nextSlack = block.getNextSlack()
 
                 block.addLastStop(stop1)
                 block.addLastStop(stop2)
 
-    def case2(self, meal):
+    def case2(self, booking):
         """
         """
         i = 0
@@ -280,10 +284,10 @@ class Shift:
                 p = block.getStopAt(j)
                 q = block.getStopAt(j + 1)
                 # checking charge-feasibility before launching the algorithm
-                if block.getChargeBefore(j) < self.maxCharge:  # and self.case2Algo(p,q,meal,j):
-                    deltaP = self.graph.dist(p.getNode(), meal.getChef()) + meal.getDRT() + \
-                             self.graph.dist(meal.getDestination(), q.getNode()) - \
-                             self.graph.dist(p.getNode(), q.getNode())
+                if block.getChargeBefore(j) < self.capacity:  # and self.case2Algo(p,q,meal,j):
+                    deltaP = self.travel_time[p.getNode().station, booking.getPickUp().station] + booking.getDRT() + \
+                             self.travel_time[booking.getDropOff().station, q.getNode().station] - \
+                             self.travel_time[p.getNode().station, q.getNode().station]   
 
                     if deltaP <= p.getBUP() + q.getADOWN():
                         feasible = True
@@ -298,17 +302,17 @@ class Shift:
                         if deltaP > q.getADOWN():
                             ds = q.getADOWN()
                             ps = q.getADOWN() - deltaP
-                            tpu = p.getST() + ps + self.graph.dist(p.getNode(), meal.getChef())
-                            td = tpu + meal.getDRT()
+                            tpu = p.getST() + ps + self.travel_time[p.getNode().station, booking.getPickUp().station]
+                            td = tpu + booking.getDRT()
                         else:
                             ps = 0
                             ds = deltaP
-                            tpu = p.getST() +self.graph.dist(p.getNode(),meal.getChef())
-                            td = tpu + meal.getDRT()
-                        # ddt, so :
+                            tpu = p.getST() + self.travel_time[p.getNode().station, booking.getPickUp().station]
+                            td = tpu + booking.getDRT()
+                        # ddt, so : (be careful, dpt !!!!)
                         gt = td
-                        et = meal.getEDT()
-                        lt = meal.getLDT()
+                        et = booking.getEDT()
+                        lt = booking.getLDT()
                         if gt < et:
                             shift = et - gt
                             if shift > (q.getADOWN() - ds) or shift > p.getBDOWN() - ps:
@@ -330,8 +334,8 @@ class Shift:
                                 ps -= shift
 
                         if feasible:
-                            stop1 = Stop(meal.getChef(), tpu, meal, True)
-                            stop2 = Stop(meal.getDestination(), td, meal, False)
+                            stop1 = Stop(booking.getPickUp(), tpu, booking, True)
+                            stop2 = Stop(booking.getDropOff(), td, booking, False)
                             # inserting the 2 stops between stop p and q
                             block.insertStop(j + 1, stop1)
                             block.insertStop(j + 2, stop2)
@@ -344,13 +348,13 @@ class Shift:
                             block = schedule[i]
             i += 1
 
-    def case3and4(self, p, q, r, meal):
+    def case3and4(self, p, q, r, booking):
         """
         Common code of case 3 and 4
         """
-        deltaP = self.graph.dist(p.getNode(), meal.getChef()) + \
-                 self.graph.dist(meal.getChef(), q.getNode()) - \
-                 self.graph.dist(p.getNode(), q.getNode())
+        deltaP = self.travel_time[p.getNode().station, booking.getPickUp().station] + \
+                 self.travel_time[booking.getPickUp().station, q.getNode().station] - \
+                 self.travel_time[p.getNode().station, q.getNode().station]
         ps = 0
         ms = 0
         ds = 0
@@ -362,15 +366,15 @@ class Shift:
             if deltaP > p.getBUP():
                 ps = -p.getBUP()
                 ms = deltaP - p.getBUP()
-                tpu = p.getST() - p.getBUP() + self.graph.dist(p.getNode(), meal.getChef())
+                tpu = p.getST() - p.getBUP() + self.travel_time[p.getNode().station, booking.getPickUp().station]
                 ds = ms
             else:
                 ps = -deltaP
-                tpu = p.getST() - deltaP + self.graph.dist(p.getNode(), meal.getChef())
-            td = r.getST() + ms + self.graph.dist(r.getNode(), meal.getDestination())
+                tpu = p.getST() - deltaP + self.travel_time[p.getNode().station, booking.getPickUp().station]
+            td = r.getST() + ms + self.travel_time[r.getNode().station, booking.getDropOff().station]
         return feasible, deltaP, ps, ms, ds, tpu, td
 
-    def case3(self, meal):
+    def case3(self, booking):
         """
         Algo of case3
         """
@@ -380,12 +384,12 @@ class Shift:
         for i in range(len(block) - 2):
             p = block.getStopAt(i)
             q = block.getStopAt(i + 1)
-            feasible, deltaP, ps, ms, ds, tpu, td = self.case3and4(p, q, r, meal)
+            feasible, deltaP, ps, ms, ds, tpu, td = self.case3and4(p, q, r, booking)
             if feasible:
                 # ddt, so :
                 gt = td
-                et = meal.getEDT()
-                lt = meal.getLDT()
+                et = booking.getEDT()
+                lt = booking.getLDT()
                 if gt > lt:
                     shift = gt - lt
                     if shift > (p.getBUP() + ps) or shift > (q.getAUP() + ms):
@@ -406,18 +410,18 @@ class Shift:
                         ms += shift
 
                 if feasible:
-                    stop1 = Stop(meal.getChef(), tpu, meal, True)
-                    stop2 = Stop(meal.getDestination(), td, meal, False)
+                    stop1 = Stop(booking.getPickUp(), tpu, booking, True)
+                    stop2 = Stop(booking.getDropOff(), td, booking, False)
                     block.insertStop(i + 1, stop1)
                     block.addLastStop(stop2)
                     block.shiftScheduleBetween(stop1, stop2, ms)
                     block.shiftScheduleBefore(stop1, ps)
-                    if block.respectCharge(self.maxCharge):
+                    if block.respectCharge(self.capacity):
                         self.feasibleSchedules.append(schedule)
                     schedule = deepcopy(self.currentSchedule)
                     block = schedule[-1]
 
-    def case4(self, meal):
+    def case4(self, booking):
         """
         Algo of case 4
         """
@@ -429,12 +433,12 @@ class Shift:
                 q = block.getStopAt(j + 1)
                 for k in range(j + 1, len(block) - 2):
                     r = block.getStopAt(k)
-                    feasible, deltaP, ps, ms, ds, tpu, td = self.case3and4(p, q, r, meal)
+                    feasible, deltaP, ps, ms, ds, tpu, td = self.case3and4(p, q, r, booking)
                     if feasible:
                         s = block.getStopAt(k + 1)
-                        deltaD = self.graph.dist(r.getNode(), meal.getDestination()) + \
-                                 self.graph.dist(meal.getDestination(), s.getNode()) - \
-                                 self.graph.dist(r.getNode(), s.getNode())
+                        deltaD = self.travel_time[r.getNode().station, booking.getDropOff().station] + \
+                                 self.travel_time[booking.getDropOff().station, s.getNode().station] - \
+                                 self.travel_time[r.getNode().station, s.getNode().station]
                         if deltaD <= (r.getBUP() + s.getADOWN()) or (deltaP + deltaD) <= (s.getADOWN()
                                                                                               + p.getBUP()):
                             if (deltaD + ds) > s.getADOWN():
@@ -447,8 +451,8 @@ class Shift:
                                 ds += deltaD
                             # ddt, so:
                             gt = td
-                            et = meal.getEDT()
-                            lt = meal.getLDT()
+                            et = booking.getEDT()
+                            lt = booking.getLDT()
                             if gt < et:
                                 shift = et - gt
                                 if shift > (q.getADOWN() - ms) or shift > (p.getBDOWN() - ps) or shift > (
@@ -473,14 +477,14 @@ class Shift:
                                     ds -= shift
 
                             if feasible:
-                                stop1 = Stop(meal.getChef(), tpu, meal, True)
-                                stop2 = Stop(meal.getDestination(), td, meal, False)
+                                stop1 = Stop(booking.getPickUp(), tpu, booking, True)
+                                stop2 = Stop(booking.getDropOff(), td, booking, False)
                                 block.insertStop(j + 1, stop1)
                                 block.insertStop(k + 2, stop2)
                                 block.shiftScheduleBefore(stop1, ps)
                                 block.shiftScheduleAfter(stop2, ds)
                                 block.shiftScheduleBetween(stop1, stop2, ms)
-                                if block.respectCharge(self.maxCharge):
+                                if block.respectCharge(self.capacity):
                                     self.feasibleSchedules.append(schedule)
                                 schedule = deepcopy(self.currentSchedule)
                                 block = schedule[i]

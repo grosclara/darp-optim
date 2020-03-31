@@ -9,7 +9,8 @@ class Booking:
         self.passengers = passengers
         self.jobs = jobs
 
-        self.drt = drt
+        self.drt = drt # Direct ride time
+        self.deviation = 0
 
         self.disutility = 0
         self.newDisutility = 0
@@ -24,17 +25,23 @@ class Booking:
     def getEDT(self): # Earliest delivery time
         return self.jobs[1].tw_start
 
-    def getLDT(self) # Latest delivery time
+    def getLDT(self): # Latest delivery time
         return self.jobs[1].tw_end
     
-    def getDPT(self) # Desired pick up time
+    def getDPT(self): # Desired pick up time
         return self.getEPT()
     
-    def getDirectRideTime(self) :
+    def getDRT(self) : # Direct ride time
         return self.drt
+    
+    def getMRT(self) : # Maximum ride time
+        return self.max_duration
 
-    def getDisutility(self) :
-        retun self.disutility
+    def getDeviation(self):
+        return self.deviation
+
+    def getDisutility(self):
+        return self.disutility
 
     def getPickUp(self):
         return self.jobs[0]

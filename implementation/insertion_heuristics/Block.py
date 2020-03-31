@@ -1,5 +1,4 @@
-from node import *
-from stop import *
+from Stop import *
 
 class Block:
 
@@ -144,7 +143,7 @@ class Block:
         return self.stops[-1].getST()-self.stops[0].getST()
 
 
-    def getNbrOfMeals(self):
+    def getNbrOfPassengers(self):
         return len(self.stops)//2
 
     def getChargeBefore(self,i):
@@ -203,11 +202,11 @@ class Block:
     def __len__(self):
         return len(self.stops)
 
-    def __contains__(self, meal):
+    def __contains__(self, booking):
         contains=False
         i=0
         while not contains and i<len(self.stops):
-            if self.stops[i].getMeal()==meal:
+            if self.stops[i].getBooking()==booking:
                 contains=True
             i+=1
         return contains
