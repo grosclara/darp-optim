@@ -64,29 +64,17 @@ class ShiftScheduleBlock:
         self.bookings_processed = []
 
         # Route objet : job dans un job : time window capacity
-        self.route = dllist([{"Job":shift.jobs[0],"Used capacity":0, "Arrival time":0, "Departure time":0},{"Job":shift.jobs[1],"Used capacity":0, "Arrival time":0, "Departure time":0}]) #Dépot
+        self.warehouse = 0
+        self.route = dllist([{"Job":shift.jobs[0],"Used capacity":0, "Scheduled time":0},{"Job":shift.jobs[1],"Used capacity":0, "Scheduled time":0}]) #Dépot
         self.turnover = 0
         self.cost = 0
 
-"""
-        if seed_customer:
-            lroute = [0]+seed_customers+[0]
-            self.route = dllist(lroute)
-            self.cost = objf(lroute, D)
-            self.used_capacity = sum(d[n] for n in lroute) if d else 0
-        else:
-            self.route = dllist([0,0])
-            self.used_capacity = 0
-            self.cost = 0
-            
-    @staticmethod
-    def export_solution(route_datas):
-        sol = []
-        for rd in route_datas:
-            if rd and len(rd.route)>2:
-                sol += list(rd.route)[1:]
-        return sol
- """
+# class ShiftStop:
+#     def __init__(self, job, capacity, arrival_time, departure_time):
+#         self.job = job
+#         self.capacity = capacity
+#         self.arrival_time = arrival_time
+#         self.departure_time = departure_time
 
 from collections import namedtuple
 

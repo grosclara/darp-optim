@@ -56,11 +56,107 @@ def _check_ride_time_constraint():
 
     return True
 
-def _check_insertion_feasibility():
-    return True
+def _check_insertion_feasibility(schedule, booking, node_before_pick_up, node_before_drop_off, deviation):
 
-def _check_insertion_feasibility_same_node():
-    return True 
+
+
+    EPT,LPT = booking.jobs[0].tw_start, booking.job[0].tw_end # pick up
+    EDT, LDT = booking.jobs[1].tw_start, booking.job[1].tw_end # drop off
+
+def _check_insertion_feasibility(travel_time, node_before_pickup, node_before_drop_off, schedule, booking):
+    """
+    :param travel_time: tableau indexé sur les numéros des stations
+    :param node_before_pickup: de type node avec node.value de type {"Job":BookingJob,"Used capacity": int , "Arrival time": int, "Departure time": int}
+    :param node_before_drop_off: de type node,
+    :param schedule: liste de dictionnaire [ ... {"Job":BookingJob,"Used capacity": int , "Arrival time": int, "Departure time": int} ...]
+    :param booking: de type Booking, (c'est le booking qu'on veut insérer  { ... "booking_job.id" : int ...}),
+
+    :return: bool
+    """
+    #cette fonction va ressortir "AT du client à insérer
+    #les clients impactés sont  ensemble des client privé (drop-off avant le pick-up à insérer)
+    #on regarde les évènements de manière indépendant de si elle sont des drop-off ou des pick-up
+    #3 cas :
+    #évènement <= node_before_pickup  : pas de changement bookings_before
+    #node_before_pickup< évènement <= node_before_drop_off : décalage de deviation pick-up bookings_between
+    #node_before_drop_off < évènement : décalage pick-up + drop_off bookings_after
+
+    #il ne faut pas oublier l'hypothèse ou la voiture était s'était arrêter à une station pour attendre un client -> on doit calculer le temps du nouvel
+    #itinéraire sans partir de AT
+
+    #on construit les listes des différents cas
+
+    jobs_before = []
+    jobs_between = []
+    jobs_after = []
+    AT_before_pickup = node_before_pickup.value['Arrival time']
+    AT_before_drop_off = node_before_drop_off.value['Arrival time']
+    AT_results ={}
+
+    for node in schedule.route :
+        AT_node = node.value['Arrival time']
+        if AT_node <= AT_before_pickup :
+            jobs_before.append(node.value)
+            AT_results[node.value['Job'].job_id] = node.value["Arrival time"]
+        elif AT_node <= AT_before_drop_off :
+            jobs_between.append(node.value)
+        else :
+            jobs_after.append(node.value)
+
+    time_route = AT_before_pickup + node_before_pickup.value.duration
+    #on ajoute le délai pour aller à booking
+
+    time_route += travel_time[node_to_station[node_before_pickup.value], node_to_station[booking.jobs[0].job_id]]
+    if time_route < booking.jobs[0].tw_start :
+        time_route = booking.jobs[0].tw_start
+    elif time_route > booking.jobs[0].tw_end :
+        #on ne peut pas aller chercher la personne dans les contraintes horaires
+        return False, None
+
+    AT_results[booking.jobs[0].job_id] = time_route
+    time_route += booking.jobs[0].duration
+
+    for k in range(len(jobs_between)) :
+        if k == 0 :
+            job_before = booking.jobs[0]
+        else :
+            job_before = jobs_between[k-1]
+        job = jobs_between[k]
+        time_route += travel_time[node_to_station[job_before.job_id], node_to_station[job.job_id]]
+        if time_route < job.tw_start:
+            time_route = job.tw_start + job.duration
+        elif time_route > job.tw_end :
+            return False, None
+        AT_results[job.job_id] = time_route
+        time_route += job.duration
+
+     #on doit maintenant s'assurer pour les job après le pick-up que c'est valide
+
+    time_route += travel_time[node_to_station[node_before_drop_off.value.job_id], node_to_station[booking.jobs[1].job_id]]
+    if time_route < booking.jobs[1].tw_start:
+        time_route = booking.jobs[1].tw_start
+    elif time_route > booking.jobs[1].tw_end:
+        # on ne peut pas aller chercher la personne dans les contraintes horaires
+        return False, None
+
+    AT_results[booking.jobs[1].job_id] = time_route
+    time_route += booking.jobs[1].duration
+
+    for k in range(len(jobs_after)) :
+        if k == 0 :
+            job_before = booking.jobs[1]
+        else :
+            job_before = jobs_after[k-1]
+        job = jobs_between[k]
+        time_route += travel_time[node_to_station[job_before.job_id], node_to_station[job.job_id]]
+        if time_route < job.tw_start:
+            time_route = job.tw_start
+        elif time_route > job.tw_end :
+            return False
+        AT_results[job.job_id] = time_route
+        time_route += job.duration
+    return True, AT_results
+
 
 ############### UTILS ###############
 
@@ -123,28 +219,40 @@ def _new_potential_insertions(schedule, booking, travel_time, node_to_station):
         node_before_pick_up = node_before_pick_up.next
 
 
+
+def _update_capacity(schedule, insertion) :
+    pick_up_node = insertion.node_before_pick_up.next
+    drop_off_node = insertion.node_before_drop_off.next
+    node = pick_up_node
+
+    while node != drop_off_node : # Before the drop off node, increment the used capacity of each node
+        node["Used capacity"] += insertion.booking.passengers
+        node = node.next
+
+def _update_turnover(schedule, insertion) :
+    schedule.turnover += insertion.booking.passengers
+
+def _update_schedule_timing(schedule, insertion):
+    pass
+
 def _insert_and_update(schedule, insertion):
 
+    # Construct pick up and drop off nodes
+    pick_up_node = 1 # Capacity of pick_up node == capacity of node_before_pick_up
+    drop_off_node = 2 # Capacity of drop_off_node == capacity of node_before_drop_off
 
-    if not minimize_K:
-        # Compared to a solution where the customer is served individually
-        insertion_cost = insertion.cost_delta\
-                         -D[0,insertion.customer]\
-                         -D[insertion.customer,0]
-        if insertion_cost > 0:
-            if __debug__:
-                log(DEBUG-2,("Rejecting insertion of n%d "%insertion.customer)+
-                            ("as it is expected make solution worse."))
-            return False, None
-        
-    if L and rd.cost+insertion.cost_delta-S_EPS > L:
-        return False, None
-    else:
-        inserted = rd.route.insert(insertion.customer, insertion.before_node)                
-        rd.cost += insertion.cost_delta
-        rd.used_capacity += insertion.demand_delta 
-        new_edges = [ (insertion.after_node, inserted), (inserted, insertion.before_node) ]
-        return True, new_edges
+    # Insert pick up and drop off nodes
+    schedule.route.insert(drop_off_node, node_before_drop_off.next)
+    schedule.route.insert(pick_up_node, node_before_pick_up.next)
+
+    # Updates
+
+    # Turnover
+    _update_turnover(schedule = schedule, insertion = insertion)
+    # Capacity
+    _update_capacity(schedule = schedule, insertion = insertion)
+    # Schedule timing
+    _update_schedule_timing(schedule = schedule, insertion = insertion)
 
 
 ############### INSERTION HEURISTICS ###############
