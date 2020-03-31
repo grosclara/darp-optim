@@ -52,9 +52,12 @@ nb_shifts = len(data_dict['shifts'])
 for shift in data_dict['shifts']:
     jobs = []
     for job in shift['jobs']:
+
+        station = int(job['station'][1:])
+
         # Create the ShiftJob object
         j = ShiftJob(job['id'], job['type'], job['timeDate'],
-                     job['latitude'], job['longitude'], job['station'])
+                     job['latitude'], job['longitude'], station)
 
         # Add the job to the jobs list
         jobs.append(j)
