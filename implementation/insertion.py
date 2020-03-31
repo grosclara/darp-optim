@@ -117,13 +117,13 @@ def _new_potential_insertions(schedule, booking, travel_time, node_to_station):
                 if __debug__ :
                     log(DEBUG-2,("Rejecting this configuration"))
 
-        # Update potential drop off node insertion
-        node_before_drop_off = node_before_drop_off.next
-    # Update potential pick up node insertion
-    node_before_pickup = node_before_pickup.next
+            # Update potential drop off node insertion
+            node_before_drop_off = node_before_drop_off.next
+        # Update potential pick up node insertion
+        node_before_pick_up = node_before_pick_up.next
 
 
-def _insert_and_update(insertion, opt_insertion):
+def _insert_and_update(schedule, insertion):
 
 
     if not minimize_K:
@@ -180,7 +180,7 @@ def insertion_init(parameters = parameters, bookings = bookings, shifts = shifts
                 continue
             else :
                 # Unpack the best candidate from the insertion heap
-                _, insertion = headpop(schedule.potential_insertions)
+                _, insertion = heappop(schedule.potential_insertions)
                 if insertion.deviation < min_deviation:
                     min_deviation = insertion.deviation
                     opt_insertion = insertion
@@ -188,8 +188,7 @@ def insertion_init(parameters = parameters, bookings = bookings, shifts = shifts
         if opt_insertion != None : # Check if the booking can be inserted somewhere
 
             if __debug__:
-                log(DEBUG,"Chose to insert n%d resulting in route %s (%.2f)"%
-                        (opt_insertion.booking, str(list(schedule.route)), schedule.cost))         
+                log(DEBUG,"Chose to insert")      
 
             # Insert the booking_to_schedule in the chosen schedule and update its characteristics
             _insert_and_update(schedule = schedule, insertion = opt_insertion)
@@ -204,8 +203,8 @@ def insertion_init(parameters = parameters, bookings = bookings, shifts = shifts
             if __debug__:
                 log(DEBUG-2,"Booking rejected") 
 
-    return(schedules)                         
     print(schedules)
+    return(schedules)                         
 
 
 
@@ -218,3 +217,4 @@ def get_si_algorithm():
     
 if __name__=="__main__":
     get_si_algorithm()
+    pass
