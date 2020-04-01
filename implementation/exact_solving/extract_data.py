@@ -3,8 +3,8 @@ import pandas
 import numpy
 from class_init import Booking, BookingJob, Shift, ShiftJob
 
-with open("data/toy_dataset.json") as json_data:
-#with open("data/day_data.json") as json_data:
+#with open("data/toy_dataset.json") as json_data:
+with open("data/day_data.json") as json_data:
     data_dict = json.load(json_data)
 
 # BOOKING LIST
@@ -68,8 +68,8 @@ for shift in data_dict['shifts']:
     shifts.append(s)
 
 # TRAVEL TIMES
-time_data = pandas.read_csv("data/toy_travel_times.csv", sep=';')
-#time_data = pandas.read_csv("data/travel_times.csv", sep=';')
+#time_data = pandas.read_csv("data/toy_travel_times.csv", sep=';')
+time_data = pandas.read_csv("data/travel_times.csv", sep=';')
 nb_stations = len(time_data)
 
 # Matrix where time_table[i,j] is the travel time from station i to j
@@ -81,8 +81,6 @@ for i in range(nb_stations):
     for j in range(nb_stations):
         #time_table_dict[i, j] = int(time_data["s{}".format(i)][j])
         time_table_dict[i, j] = int(time_data["s{}".format(j)][i])
-
-#print(time_table_dict)
 
 # SETS
 

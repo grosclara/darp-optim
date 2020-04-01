@@ -4,7 +4,7 @@
       "id": 100,
       "price": 5,
       "passengers": 1,
-      "maximumDuration": 600,
+      "maximumDuration": 1000,
       "jobs": [
         {
           "id": 11354831,
@@ -27,13 +27,41 @@
           "station": "s2"
         }
       ]
+    },
+    {
+      "id": 200,
+      "price": 5,
+      "passengers": 1,
+      "maximumDuration": 1000,
+      "jobs": [
+        {
+          "id": 113154831,
+          "type": "PickUpJob",
+          "timeWindowBeginDate": 600,
+          "timeWindowEndDate": 1500,
+          "duration": 1,
+          "latitude": 49.01606369018555,
+          "longitude": 1.6916327476501465,
+          "station": "s2"
+        },
+        {
+          "id": 21516438135,
+          "type": "DropOffJob",
+          "timeWindowBeginDate": 900,
+          "timeWindowEndDate": 1900,
+          "duration": 1,
+          "latitude": 48.989906311035156,
+          "longitude": 1.7033958435058594,
+          "station": "s1"
+        }
+      ]
     }
   ],
   "shifts": [
     {
       "id": 10,
-      "capacity": 2,
-      "maximumTurnover": 10,
+      "capacity": 5,
+      "maximumTurnover": 11,
       "jobs": [
         {
           "id": 11,
@@ -46,7 +74,7 @@
         {
           "id": 12,
           "type": "ShiftEnd",
-          "timeDate": 2000,
+          "timeDate": 3000,
           "latitude": 48.99266052246094,
           "longitude": 1.6903244256973267,
           "station": "s0"
