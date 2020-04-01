@@ -49,112 +49,66 @@ model.m = pyo.Var(model.P, model.M, within=pyo.NonNegativeReals, doc="Booking du
 
 def c1_rule(model, i):
     return pyo.inequality(0, sum(model.x[i, j, k] for j in model.V for k in model.M), 1)
-
-
 model.c1 = pyo.Constraint(model.P, rule=c1_rule, doc='Request satisfied at most once')
-
 
 def c2_rule(model, i, k):
     return pyo.inequality(0, sum(model.x[i, j, k] for j in model.V) - sum(model.x[j, i, k] for j in model.V), 0)
-
-
 model.c2 = pyo.Constraint(model.PuD, model.M, rule=c2_rule, doc='Graph constraint')
 
-
 def c3_rule(model, k):
-    return pyo.inequality(1, sum(model.x[0, j, k] for j in model.V), 1)  # for j in model.P
-
-
+    return pyo.inequality(1, sum(model.x[0, j, k] for j in model.V), 1)
 model.c3 = pyo.Constraint(model.M, rule=c3_rule, doc='Shift start constraint')
-
 
 def c4_rule(model, k):
     return pyo.inequality(1, sum(model.x[i, 2 * nb_bookings + 1, k] for i in model.V), 1)
-
-
 model.c4 = pyo.Constraint(model.M, rule=c4_rule, doc='Shift end constraint')
 
-
 def c5_rule(model, i, k):
-    return pyo.inequality(0,
-                          sum(model.x[i, j, k] for j in model.V) - sum(model.x[nb_bookings + i, j, k] for j in model.V),
-                          0)
-
-
+    return pyo.inequality(0,sum(model.x[i, j, k] for j in model.V) - sum(model.x[nb_bookings + i, j, k] for j in model.V),0)
 model.c5 = pyo.Constraint(model.P, model.M, rule=c5_rule, doc='Request done by one vehicule')
-
 
 def c6_rule(model, i, j, k):
     mij = model.e[i] + model.t[node_to_station[i], node_to_station[j]] + model.tw[i][1] - model.tw[j][0]
     Mij = max(0, mij)
     return model.u[j, k] >= model.u[i, k] + model.e[i] + model.t[node_to_station[i], node_to_station[j]] - Mij * (
                 1 - model.x[i, j, k])
-
-
-model.c6 = pyo.Constraint(model.V, model.V, model.M, rule=c6_rule, doc='Coherence visit time')
-
+model.c6 = pyo.Constraint(model.V, model.V, model.M, rule=c6_rule, doc='Coherence visit time') #not checked
 
 def c7_rule(model, i, k):
     return pyo.inequality(model.tw[i][0], model.u[i, k], model.tw[i][1])
-
-
 model.c7 = pyo.Constraint(model.PuD, model.M, rule=c7_rule, doc='Client time window')
-
 
 def c8_rule(model, i, k):
     return pyo.inequality(0, model.m[i, k] - model.u[nb_bookings + i, k] + (model.u[i, k] + model.e[i]), 0)
-
-
 model.c8 = pyo.Constraint(model.P, model.M, rule=c8_rule, doc='Total request time')
-
 
 def c9_rule(model, i, k):
     return pyo.inequality(model.t[node_to_station[i], node_to_station[nb_bookings + i]], model.m[i, k], model.m_max[i])
-
-
 model.c9 = pyo.Constraint(model.P, model.M, rule=c9_rule, doc='Ride time limit')
-
 
 def c10_rule(model, i, j, k):
     Qik = min(model.C[k], model.C[k] + model.q_req[i])
-    return model.q[j, k] >= model.q[i, k] + model.q_req[j] - Qik * (1 - model.x[i, j, k])
-
-
+    return model.q[j, k] >= model.q[i, k] + model.q_req[j] - Qik * (1 - model.x[i, j, k]) #not checked
 model.c10 = pyo.Constraint(model.V, model.V, model.M, rule=c10_rule, doc='Coherence load vehicule')
 
-
 def c11_rule(model, i, k):
-    return pyo.inequality(max(0, model.q_req[i]), model.q[i, k], min(model.C[k], model.C[k] + model.q_req[i]))
-
-
+    return pyo.inequality(max(0, model.q_req[i]), model.q[i, k], min(model.C[k], model.C[k] + model.q_req[i])) #not checked
 model.c11 = pyo.Constraint(model.V, model.M, rule=c11_rule, doc='Vehicule capacity constraint')
-
 
 def c12_rule(model, k):
     return model.u[0, k] >= model.tw_driver[k][0]
-
-
 model.c12 = pyo.Constraint(model.M, rule=c12_rule, doc='Shift begin')
-
 
 def c13_rule(model, k):
     return model.u[2 * nb_bookings + 1, k] <= model.tw_driver[k][1]
-
-
 model.c13 = pyo.Constraint(model.M, rule=c13_rule, doc='Shift end')
-
 
 def c14_rule(model, k):
     return pyo.inequality(0, sum(model.r[i] * model.x[i, j, k] for i in model.P for j in model.V), model.R[k])
-
-
 model.c14 = pyo.Constraint(model.M, rule=c14_rule, doc='Driver turnover constraint')
-
 
 def c15_rule(model):
     return pyo.inequality(0, sum(model.x[i, i, k] for i in model.V for k in model.M), 0)
-
-
 model.c15 = pyo.Constraint(rule=c15_rule, doc='No loop constraint')
 
 # DEFINE OBJECTIVE AND SOLVE
@@ -169,20 +123,4 @@ def objective_rule(model):
 
 model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize, doc='Objective function')
 
-
-# Display of the output
-def pyomo_postprocess(options=None, instance=None, results=None):
-    # instance.pprint()
-    instance.x.display()
-    # instance.write()
-    pass
-
-
-if __name__ == '__main__' :
-    instance = model.create_instance()
-    opt = pyo.SolverFactory("gurobi")
-    results = opt.solve(instance, tee=True)
-    instance.solutions.load_from(results)
-    print("\nDisplaying Solution\n" + '-' * 60)
-    print(log_infeasible_constraints(model))
-    pyomo_postprocess(None, instance, results)
+#pyomo solve exact_solving/exact_solving.py --solver=gurobi --save-results "exact_solving/results/test.json"

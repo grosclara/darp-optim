@@ -4,10 +4,10 @@
       "id": 100,
       "price": 5,
       "passengers": 1,
-      "maximumDuration": 1600,
+      "maximumDuration": 600,
       "jobs": [
         {
-          "id": 1,
+          "id": 11354831,
           "type": "PickUpJob",
           "timeWindowBeginDate": 300,
           "timeWindowEndDate": 400,
@@ -17,7 +17,7 @@
           "station": "s1"
         },
         {
-          "id": 2,
+          "id": 2156438135,
           "type": "DropOffJob",
           "timeWindowBeginDate": 300,
           "timeWindowEndDate": 1000,
@@ -32,7 +32,7 @@
   "shifts": [
     {
       "id": 10,
-      "capacity": 3,
+      "capacity": 2,
       "maximumTurnover": 10,
       "jobs": [
         {
