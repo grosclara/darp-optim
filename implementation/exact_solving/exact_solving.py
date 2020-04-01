@@ -159,7 +159,6 @@ model.c15 = pyo.Constraint(rule=c15_rule, doc='No loop constraint')
 
 # DEFINE OBJECTIVE AND SOLVE
 
-
 def objective_rule(model):
     # Epsilon should be greater than the total possible distance travelled by the whole vehicle fleet
     eps = 1/sum(model.t[i,j] for i in model.S for j in model.S)

@@ -103,12 +103,12 @@ pud_set = pick_up_set + drop_off_set
 # List of pick_up, drop_off and warehouse (station 0 and 2n+1)
 # [0, ..., 51]
 node_set = [0] + pick_up_set + drop_off_set + [2 * nb_bookings + 1]
-# print(node_set)
+#print(node_set)
 
 # List of stations to compute travel times
 # [0, ..., 52]
 station_set = [k for k in range(nb_stations)]
-# print(station_set)
+#print(station_set)
 
 # To retrieve the time travel given elements in node_set, there's a need to 
 # retrieve the corresponding station
