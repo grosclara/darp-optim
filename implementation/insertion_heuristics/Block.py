@@ -18,7 +18,6 @@ class Block:
         self.a = min(self.a,stop1.getA(),stop2.getA())
         self.r = max(self.r, stop2.getR(), stop1.getR())
 
-
         self.shiftSchedule(self.r)
         self.calcUPnDOWN()
 

@@ -25,6 +25,7 @@ class Darp:
             bestSchedules=[]
             for j in range(len(self.shifts)):
                 self.addToShift(self.bookings[i],self.shifts[j])
+                
                 bestSchedule = self.findBestShiftSchedule(self.shifts[j],self.bookings[i])
                 if bestSchedule != [float("inf")]: # Determine best overall schedule
                     bestSchedule.append(j)
