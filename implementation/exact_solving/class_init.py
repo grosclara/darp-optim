@@ -7,6 +7,9 @@ class Booking:
         self.passengers = passengers
         self.jobs = jobs
 
+    def __lt__(self, other):
+        return self.jobs[1].tw_start < other.jobs[1].tw_start
+
     def __repr__(self):
         return str(self.long_id)
 

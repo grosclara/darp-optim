@@ -1,17 +1,19 @@
 import json
 import pandas
-#extraction des donnes
-with open("week_data.json") as json_data:
+
+# Extraction des données
+with open("data/week_data.json") as json_data:
     data = json.load(json_data)
 
-time_data = pandas.read_csv("travel_times.csv", sep=';')
+time_data = pandas.read_csv("data/travel_times.csv", sep=';')
 
 nb_stations = len(time_data)
 time = {}
 
 for i in range(nb_stations):
     for j in range(nb_stations):
-        time["s"+str(i), "s"+str(j)] = int(time_data["s{}".format(i)][j])
+        time["s"+str(i), "s"+str(j)] = int(time_data["s{}".format(j)][i])
+
 #creation de dictionnaire pour utiliser les données plus facilement (avoir accès à toutes les données uniquement avec les id)
 station={}
 prix={}
@@ -204,7 +206,7 @@ for voiture in res.keys():
 
 
 resjson={"nb_assigned_bookings":nb_assigned_bookings,"route_cost":route_cost,"shifts":shifts}
-with open('results_week_insertion.json', 'w', encoding='utf-8') as f:
+with open('insertion_heuristics/results/results_week_insertion.json', 'w', encoding='utf-8') as f:
     json.dump(resjson, f, indent=4)
 
 
