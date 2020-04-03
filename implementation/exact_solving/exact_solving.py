@@ -17,12 +17,17 @@ model.PuD = pyo.Set(initialize=sets["pud"], doc="Pick up and drop off nodes")
 model.V = pyo.Set(initialize=sets["node"], doc="Pick up, drop off and warehouses nodes")
 model.S = pyo.Set(initialize=sets["station"], doc="Stations")
 
+model.con4 = pyo.Set(initialize = sets["pud"] + [0], doc="Start depot, pick up and drop off nodes")
+model.con3 = pyo.Set(initialize = [2*nb_bookings+1] + sets["pud"], doc="End depot, pick up and drop off nodes")
+
 model.M.construct()
 model.P.construct()
 model.D.construct()
 model.PuD.construct()
 model.V.construct()
 model.S.construct()
+model.con3.construct()
+model.con4.construct()
 
 
 # PARAMETERS
@@ -76,7 +81,7 @@ model.c6 = pyo.Constraint(model.V, model.V, model.M, rule=c6_rule, doc='Coherenc
 
 def c7_rule(model, i, k):
     return pyo.inequality(model.tw[i][0], model.u[i, k], model.tw[i][1])
-model.c7 = pyo.Constraint(model.PuD, model.M, rule=c7_rule, doc='Client time window')
+model.c7 = pyo.Constraint(model.V, model.M, rule=c7_rule, doc='Client time window')
 
 def c8_rule(model, i, k):
     return pyo.inequality(0, model.m[i, k] - model.u[nb_bookings + i, k] + (model.u[i, k] + model.e[i]), 0)

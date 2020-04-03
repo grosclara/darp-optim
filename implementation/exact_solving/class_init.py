@@ -51,34 +51,3 @@ class ShiftJob:
 
     def __repr__(self):
         return str(self.long_id)
-
-from llist import dllist
-
-class ShiftScheduleBlock:
-    """ A data structure to keep all of the data of the route that is being
-    constructed in the same place. """
-
-    def __init__(self, shift):
-        
-        self.shift = shift # Shift object (capacity, max_turnover)
-
-        self.potential_insertions = []
-
-        self.bookings_processed = []
-
-        # Route objet : job dans un job : time window capacity
-        self.warehouse = 0
-        self.route = dllist([{"Job":shift.jobs[0],"Used capacity":0, "Scheduled time":0},{"Job":shift.jobs[1],"Used capacity":0, "Scheduled time":0}]) #Dépot
-        self.turnover = 0
-        self.cost = 0
-
-# class ShiftStop:
-#     def __init__(self, job, capacity, arrival_time, departure_time):
-#         self.job = job
-#         self.capacity = capacity
-#         self.arrival_time = arrival_time
-#         self.departure_time = departure_time
-
-from collections import namedtuple
-
-Insertion = namedtuple('Insertion', ['booking', 'node_before_pick_up', 'node_before_drop_off','deviation'])

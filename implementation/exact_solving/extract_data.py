@@ -1,6 +1,6 @@
 import json
 import pandas
-import numpy
+import numpy as np
 from class_init import Booking, BookingJob, Shift, ShiftJob
 
 #with open("data/toy_dataset.json") as json_data:
@@ -200,23 +200,29 @@ for booking in bookings:
 
 # Compute tw at warehouses stations
 # Compute l_0,u_0
-l_i0 = min(tw_dict[i][0] for i in range(1, 2 * nb_bookings + 1))
-t_start = min(time_table_dict[0, i] for i in range(1, nb_stations))
+
+l_i0 = [tw_dict[i][0] - time_table_dict[node_to_station[0], node_to_station[i]] for i in range(1, nb_bookings + 1)]
 L_k0 = min(tw_driver_dict[shifts[k].long_id][0] for k in range(nb_shifts))
+l_0 = max(0, min(min(l_i0),L_k0))
 
-u_i0 = max(tw_dict[i][1] for i in range(1, 2 * nb_bookings + 1))
-t_end = max(time_table_dict[i, nb_stations-1] for i in range(1, nb_stations))
+u_i0 = [tw_dict[i][1] + time_table_dict[node_to_station[i], node_to_station[2*nb_bookings+1]] for i in range(nb_bookings+1, 2*nb_bookings+1)]
 U_k0 = max(tw_driver_dict[shifts[k].long_id][1] for k in range(nb_shifts))
-
-l_0 = max(0, min(l_i0 - t_start, L_k0))
-u_0 = max(u_i0 + t_end, U_k0)
+u_0 = max(max(u_i0), U_k0)
 
 tw_dict[0] = (l_0, u_0)
 tw_dict[2 * nb_bookings + 1] = (l_0, u_0)
 
-# print(tw_dict[1][0])
+tt = np.zeros((52,52))
+for i in range(2*nb_bookings+2):
+    for j in range(2*nb_bookings+2) :
+        tt[i,j] = time_table_dict[node_to_station[i],node_to_station[j]]
 
-parameters = {"time_table_dict": time_table_dict, "duration_dict": duration_dict, "price_dict": price_dict,
+M = np.zeros((52,52))
+for i in range(2*nb_bookings+2):
+    for j in range(2*nb_bookings+2) :
+        M[i,j] = max(0,duration_dict[i] + time_table_dict[node_to_station[i],node_to_station[j]] + tw_dict[i][1] - tw_dict[j][0])
+
+parameters = {"time_table_dict": time_table_dict, "tt":tt, "M":M, "duration_dict": duration_dict, "price_dict": price_dict,
               "max_duration_dict": max_duration_dict, "passengers_dict": passengers_dict,
               "capacity_dict": capacity_dict, "max_turnover_dict": max_turnover_dict, "tw_driver_dict": tw_driver_dict,
               "tw_dict": tw_dict}
