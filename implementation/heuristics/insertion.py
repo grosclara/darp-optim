@@ -234,38 +234,37 @@ def json_writing(shift_schedules, unassigned_clients) :
         json.dump(resjson, f, indent=4)
 
 
-if __name__ == '__main__' : 
 
-    # shift_schedules[shift] represents the set of stops in the schedule of a shift
-    shift_schedules = {}
-    for shift in capacity.keys():
-        shift_schedules[shift]=[[pick_up[shift],start[pick_up[shift]]],[drop_off[shift],end[drop_off[shift]]]]
+ # shift_schedules[shift] represents the set of stops in the schedule of a shift
+shift_schedules = {}
+for shift in capacity.keys():
+    shift_schedules[shift]=[[pick_up[shift],start[pick_up[shift]]],[drop_off[shift],end[drop_off[shift]]]]
 
-    unassigned_clients = []
+unassigned_clients = []
 
-    # Sort each booking (client) according to their earliest drop off lower bound time window
-    sorted_clients = []
-    for client in max_ride_time.keys():
-        sorted_clients.append((start[drop_off[client]],client))
-    sorted_clients.sort()
+# Sort each booking (client) according to their earliest drop off lower bound time window
+sorted_clients = []
+for client in max_ride_time.keys():
+    sorted_clients.append((start[drop_off[client]],client))
+sorted_clients.sort()
 
-    for client in sorted_clients:
+for client in sorted_clients:
 
-        feasible_insertions = []
+    feasible_insertions = []
 
-        for shift in max_turnover.keys():
-            # Find optimal insertion of client in shift
-            course = insert_optimal_client(client = client[1], shift = shift, schedule = shift_schedules[shift])
-            if course != None:
-                feasible_insertions.append([course[0] - cost(shift_schedules[shift]), course[1], shift])
+    for shift in max_turnover.keys():
+        # Find optimal insertion of client in shift
+        course = insert_optimal_client(client = client[1], shift = shift, schedule = shift_schedules[shift])
+        if course != None:
+            feasible_insertions.append([course[0] - cost(shift_schedules[shift]), course[1], shift])
 
-        # Check whether at least an insertion in whatever shift is possible
-        if len(feasible_insertions) > 0:
-            optimal_insertion = min(feasible_insertions)
-            shift_schedules[optimal_insertion[2]] = optimal_insertion[1]
-        else:
-            l = unassigned_clients.append(client)
+    # Check whether at least an insertion in whatever shift is possible
+    if len(feasible_insertions) > 0:
+        optimal_insertion = min(feasible_insertions)
+        shift_schedules[optimal_insertion[2]] = optimal_insertion[1]
+    else:
+        l = unassigned_clients.append(client)
     
-    json_writing(shift_schedules = shift_schedules, unassigned_clients = unassigned_clients)
+#json_writing(shift_schedules = shift_schedules, unassigned_clients = unassigned_clients)
 
 
