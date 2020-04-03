@@ -7,6 +7,9 @@ class Booking:
         self.passengers = passengers
         self.jobs = jobs
 
+    def __lt__(self, other):
+        return self.jobs[1].tw_start < other.jobs[1].tw_start
+
     def __repr__(self):
         return str(self.long_id)
 
@@ -48,40 +51,3 @@ class ShiftJob:
 
     def __repr__(self):
         return str(self.long_id)
-
-class ShiftScheduleBlock:
-    """ A data structure to keep all of the data of the route that is being
-    constructed in the same place. """
-
-    def __init__(self, shift):
-        
-        self.shift = shift # Shift object (capacity, max_turnover)
-
-        self.potential_insertions = []
-
-        self.bookings_processed = []
-
-        # Route objet : job dans un job : time window capacity
-        self.route = dllist([{"Job":shift.jobs[0],"Used capacity":0, "Arrival time":0, "Departure time":0},{"Job":shift.jobs[1],"Used capacity":0, "Arrival time":0, "Departure time":0}]) #Dépot
-        self.turnover = 0
-        self.cost = 0
-
-"""
-        if seed_customer:
-            lroute = [0]+seed_customers+[0]
-            self.route = dllist(lroute)
-            self.cost = objf(lroute, D)
-            self.used_capacity = sum(d[n] for n in lroute) if d else 0
-        else:
-            self.route = dllist([0,0])
-            self.used_capacity = 0
-            self.cost = 0
-            
-    @staticmethod
-    def export_solution(route_datas):
-        sol = []
-        for rd in route_datas:
-            if rd and len(rd.route)>2:
-                sol += list(rd.route)[1:]
-        return sol
- """
