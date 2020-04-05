@@ -213,8 +213,11 @@ def insert_optimal_client(client, shift, schedule):
         return None
 
 
-def json_writing(shift_schedules, unassigned_clients) :
+def json_writing(shift_schedules, unassigned_clients, file_name) :
     # Json writing
+
+    # 'heuristics/results/results_week_insertion.json'
+
     nb_assigned_bookings = len(sorted_clients) - len(unassigned_clients)
     shifts = []
     route_cost = 0
@@ -230,12 +233,14 @@ def json_writing(shift_schedules, unassigned_clients) :
         shifts.append(dic)
 
     resjson={"nb_assigned_bookings":nb_assigned_bookings, "route_cost":route_cost, "shifts":shifts}
-    with open('heuristics/results/results_week_insertion.json', 'w', encoding='utf-8') as f:
-        json.dump(resjson, f, indent=4)
+    #print("Route cost :",route_cost)
+    with open(file_name, 'w', encoding='utf-8') as f:
+       json.dump(resjson, f, indent=4)
 
 
+################# INSERION ALGORITHM #################
 
- # shift_schedules[shift] represents the set of stops in the schedule of a shift
+# shift_schedules[shift] represents the set of stops in the schedule of a shift
 shift_schedules = {}
 for shift in capacity.keys():
     shift_schedules[shift]=[[pick_up[shift],start[pick_up[shift]]],[drop_off[shift],end[drop_off[shift]]]]
@@ -264,7 +269,7 @@ for client in sorted_clients:
         shift_schedules[optimal_insertion[2]] = optimal_insertion[1]
     else:
         l = unassigned_clients.append(client)
-    
+
 #json_writing(shift_schedules = shift_schedules, unassigned_clients = unassigned_clients)
 
 
