@@ -1,195 +1,418 @@
-from insertion_v1 import drop_off, pick_up, time, station, clients, sorted_clients,insert_client, global_cost
+import json
+import pandas
+from random import randint,random
+from numpy import exp,log
+import matplotlib.pyplot as plt
+import time as clock
 
-from random import randint, random
-from numpy import exp
+#extraction des donnes
+with open("data/week2_data.json") as json_data:
+    data = json.load(json_data)
 
-# Formatting
+time_data = pandas.read_csv("data/travel_times.csv", sep=';')
 
-def my_format_2_json(planning):
-    nb_assigned_bookings=len(assigned_bookings(planning))
-    shifts=[]
-    route_cost = global_cost(planning)
+nb_stations = len(time_data)
+time = {}
 
-    for shift in planning.keys():
-        dic={}
-        dic["id"] = shift
-        jobs=[]
-        for job in planning[shift]:
-            jobs.append({"id":job[0],"time":job[1]})
-        dic["jobs"]=jobs
-        shifts.append(dic)
+for i in range(nb_stations):
+    for j in range(nb_stations):
+        time["s"+str(i), "s"+str(j)] = int(time_data["s{}".format(j)][i])
+#creation de dictionnaire pour utiliser les données plus facilement (avoir accès à toutes les données uniquement avec les id)
+station={}
+prix={}
+charge={}
+duree={}
+clients={}
+debut={}
+fin={}
+latitude={}
+longitude={}
 
-    resjson={"nb_assigned_bookings":nb_assigned_bookings,"route_cost":route_cost,"shifts":shifts}
-    return resjson
+depose={}
+prise={}
+dureemax={}
 
-def json_2_my_format(resjson):
-    planning = {}
-    for shift in resjson["shifts"]:
-        schedule = []
-        for job in shift["jobs"]:
-            schedule.append([job["id"],job["time"]])
-        planning[shift["id"]] = schedule
-    return planning
+capacite={}
+salairemax={}
+
+for client in data["bookings"]:
+    dureemax[client["id"]]=client["maximumDuration"]
+    for job in client["jobs"]:
+        station[job["id"]]=job["station"]
+        duree[job["id"]]=job["duration"]
+        clients[job["id"]]=client["id"]
+        debut[job["id"]]=job["timeWindowBeginDate"]
+        fin[job["id"]]=job["timeWindowEndDate"]
+        latitude[job["id"]]=job["latitude"]
+        longitude[job["id"]]=job["longitude"]
+        if job["type"]=="PickUpJob":
+            prix[job["id"]]=client["price"]
+            charge[job["id"]]=client["passengers"]
+            prise[client["id"]]=job["id"]
+        else:
+            prix[job["id"]]=0
+            charge[job["id"]]=-client["passengers"]
+            depose[client["id"]]=job["id"]
+for voiture in data["shifts"]:
+    capacite[voiture["id"]]=voiture["capacity"]
+    salairemax[voiture["id"]]=voiture["maximumTurnover"]
+    prise[voiture["id"]]=voiture["jobs"][0]["id"]
+    depose[voiture["id"]]=voiture["jobs"][1]["id"]
+    for job in voiture["jobs"]:
+        latitude[job["id"]]=job["latitude"]
+        longitude[job["id"]]=job["longitude"]
+        debut[job["id"]]=voiture["jobs"][0]["timeDate"]
+        fin[job["id"]]=voiture["jobs"][1]["timeDate"]
+        duree[job["id"]]=0
+        station[job["id"]]="s0"
 
 
-# Inverse of the sum of the travel times for each booking
-epsilon = 0
-jobs = [job for job in drop_off.values()] + [job for job in pick_up.values()]
-for job1 in jobs:
-    for job2 in jobs:
-        epsilon += time[(station[job1], station[job2])]
-epsilon = 1/epsilon
 
 
-def assigned_bookings(planning):
-    """
-        Returns the list of assigned bookings
-    """
-    res = []
-    for emploi_du_temps in affectation.values():
-        for k in range(1,len(emploi_du_temps)-1):
-            if clients[emploi_du_temps[k][0]] not in res:
-                res.append(clients[emploi_du_temps[k][0]])
+def calcultemps(liste):
+    res=[debut[liste[0]]]
+    for k in range(1,len(liste)-1):
+        res.append(max(debut[liste[k]],res[-1]+time[(station[liste[k-1]],station[liste[k]])]+duree[liste[k-1]]))
+    res.append(fin[liste[-1]])
     return(res)
 
+def verifie(listeclient, voiture):
+    listetemps=calcultemps(listeclient)
+    for k in range(1, len(listeclient) - 1):
+        if  listetemps[k]<debut[listeclient[k]] or listetemps[k]>fin[listeclient[k]] :
+            #verifie les contraintes de borne de temps pour chaque job
+            return(False)
+        for i in range(k+1, len(listeclient) - 1):
+            if listeclient[i]==depose[clients[listeclient[k]]]:
+                if listetemps[i]-listetemps[k]>dureemax[clients[listeclient[k]]]:
+                    return(False)
+                    #verifie les contraintes de durée maximum des clients
+    salaire=0
+    charg=0
+    chargemax=0
+    for k in range(1, len(listeclient) - 1):
+            salaire+=prix[listeclient[k]]
+            charg+=charge[listeclient[k]]
+            if charg>chargemax:
+                chargemax=charg
+    if chargemax>capacite[voiture] or salaire>salairemax[voiture]:
+        return(False)
+        #verifie les contraintes de charge et salaire max pour la voiture
+    if len(listetemps)>2:
+        if listetemps[-1]-listetemps[-2]<time[(station[listeclient[-1]],station[listeclient[-2]])]+duree[listeclient[-2]]:
+            return(False)
 
-def fluctuation(planning) :
-    """
-        Randomly take a customer from among all the customers and assign him a vehicle within the respect of constraints
-    """
+    return(True)
 
-    # Choose the booking to be processed
-    m = randint(0, nb_bookings-1)
-    client = sorted_clients[m][1]
 
-    shifts = [shift for shift in planning.keys()]
-    index_shift = -1
-
-    if client in assigned_bookings(planning) :
-        stop = False
-        for k in range(len(shifts)) :
-            for i in range(1, len(planning[shifts[k]])-1) :
-                if clients[planning[shifts[k]][i][0]] == client :
-
-                    index_pick_up = i
-                    index_shift = k
-                    index_drop_off = None
-
-                    for j in range(i+1, len(planning[shifts[k]])-1):
-                        
-                        if clients[planning[shifts[k]][j][0]] == client :
-                            index_drop_off = j
-                            break
-
-                    stop = True
-                    break
-
-            if stop :
+def insertclient(client, voiture, listeclient):
+    emploi_du_temps=calcultemps(listeclient)
+    listeprecedentinsertion=[[],[]]#liste des indice des courses après les quelles il est en théorie possible d'inserer la prise/depose du client
+    i=0
+    #on ne peut inserer un job après une course que si l'heure de la course se trouve dans l'intervalle de temps du job ou juste avant
+    for job in [prise,depose]:
+        for k in range(1,len(emploi_du_temps)):
+            if emploi_du_temps[k]>=debut[job[client]]:
+                listeprecedentinsertion[i].append(k-1)
+            if emploi_du_temps[k]>fin[job[client]]:
                 break
+        i+=1
+    listecandidat=[]
 
-        shift_insert = shifts.pop(index_shift)
+    for i in listeprecedentinsertion[0]:
+        for j in listeprecedentinsertion[1]:
+            if j>=i:
+                candidat=listeclient[:]
+                candidat=candidat[:i+1]+[prise[client]]+candidat[i+1:]
+                candidat=candidat[:j+2]+[depose[client]]+candidat[j+2:]
+                if verifie(candidat,voiture):
+                    listecandidat.append(candidat)
+    return(listecandidat)
 
-    candidates = []
-    for shift in shifts :
+def cout(listeclient):
+    #calcule le cout lié à un emploi du temps (un seul vehicule)
+    somme=0
+    for k in range(len(listeclient) - 1):
+        somme+=time[(station[listeclient[k]], station[listeclient[k + 1]])]
+    return(somme)
 
-        candidate_shift_k = insert_client(client, shift, planning[shift])
+def cout_total(affectation):
+    somme=0
+    for emploi_du_temps in affectation.values():
+        somme+=cout(emploi_du_temps)
+    return(somme)
 
-        for candidat in candidate_shift_k:
-            candidates.append([candidat,shift])
+listeclient=[]
+for client in dureemax.keys():
+    listeclient.append(client)
 
-    if len(candidates) == 0 :
-        return None
 
+
+def listeclientservi(affectation):
+    res=[]
+    for emploi_du_temps in affectation.values():
+        for k in range(1,len(emploi_du_temps)-1):
+            if clients[emploi_du_temps[k]] not in res:
+                res.append(clients[emploi_du_temps[k]])
+    return(res)
+
+def monformat2json(affectation):
+    nb_assigned_bookings=len(listeclientservi(affectation))
+    shifts=[]
+    route_cost=cout_total(affectation)
+
+    for voiture in affectation.keys():
+        dic={}
+        dic["id"]=voiture
+        jobs=[]
+        listeclient=affectation[voiture]
+        listetemps=calcultemps(listeclient)
+        for k in range(len(listeclient)):
+
+            jobs.append({"id":listeclient[k],"time":listetemps[k]})
+        dic["jobs"]=jobs
+        shifts.append(dic)
+    resjson={"nb_assigned_bookings":nb_assigned_bookings,"route_cost":route_cost,"shifts":shifts}
+    return(resjson)
+
+def json2monformat(resjson):
+    affectation={}
+    for shift in resjson["shifts"]:
+        emploi=[]
+        for job in shift["jobs"]:
+            emploi.append(job["id"])
+        affectation[shift["id"]]=emploi
+    return(affectation)
+
+
+def fluctuation1(affectation):
+    m=randint(0,len(listeclient)-1)
+    client=listeclient[m]
+    listevoiture=[voiture for voiture in affectation.keys()]
+    indicevoiture=-1
+    if client in listeclientservi(affectation):
+        arret=False
+        for k in range(len(listevoiture)):
+            for i in range(1,len(affectation[listevoiture[k]])-1):
+                if clients[affectation[listevoiture[k]][i]]==client:
+                    indiceprise=i
+                    indicevoiture=k
+                    indicedepose=None
+                    for j in range(i+1,len(affectation[listevoiture[k]])-1):
+                        if clients[affectation[listevoiture[k]][j]]==client:
+                            indicedepose=j
+                            break
+                    arret=True
+                    break
+            if arret:
+                break
+        voitureclient=listevoiture.pop(indicevoiture)
+    listecandidat=[]
+    for voiture in listevoiture:
+        candidatvoiturek=insertclient(client,voiture,affectation[voiture])
+        for candidat in candidatvoiturek:
+            listecandidat.append([candidat,voiture])
+    if len(listecandidat)==0:
+        return(None)
     else:
-        planning_bis = {}
-        for shift in shifts :
-            liste = []
-            for course in planning[shift]:
-                liste.append(course[:])
-            planning_bis[shift] = liste
+        affectationbis={}
+        for voiture in listevoiture:
+            liste=affectation[voiture][:]
+            affectationbis[voiture]=liste
+        m=randint(0,len(listecandidat)-1)
+        affectationbis[listecandidat[m][1]]=listecandidat[m][0]
+        if indicevoiture>=0:
+            liste=affectation[voitureclient][:]
+            liste.pop(indicedepose)
+            liste.pop(indiceprise)
+            affectationbis[voitureclient]=liste
 
-        m = randint(0, len(candidates)-1)
-        planning_bis[candidates[m][1]]=candidates[m][0]
-        if index_shift >= 0 :
-            liste=[]
-            for course in planning[shift_insert]:
-                liste.append(course[:])
-            liste.pop(index_drop_off)
-            liste.pop(index_pick_up)
-            planning_bis[shift_insert] = liste
+    return(affectationbis)
 
-    return planning_bis
+def fluctuation2(affectation):
+    affectationbis={}
+    for voiture in affectation.keys():
+        affectationbis[voiture]=affectation[voiture][:]
+    listevoiture=["rejet"]
+    for voiture in affectation.keys():
+        if len(affectation[voiture])>2:
+            listevoiture.append(voiture)
+    m=randint(0,len(listevoiture)-1)
+    n=randint(0,len(listevoiture)-2)
+    voiture1=listevoiture.pop(m)
+    voiture2=listevoiture.pop(n)
+    if voiture1=="rejet":
+        voiture1,voiture2=voiture2,voiture1
+    m=randint(1,len(affectation[voiture1])-2)
+    client1=clients[affectation[voiture1][m]]
+    indice1=[]
+    for k in range(1,len(affectation[voiture1])-1):
+        if clients[affectation[voiture1][k]]==client1:
+            indice1.append(k)
+    #print(len(indice1))
+    nouvelliste1=affectation[voiture1][:indice1[0]]+affectation[voiture1][indice1[0]+1:indice1[1]]+affectation[voiture1][indice1[1]+1:]
 
 
-def energy(planning) :
-    return(- (len(assigned_bookings(planning)) - epsilon*global_cost(planning)))
+    if voiture2=="rejet":
+        listerejet=[]
+        listeservi=listeclientservi(affectation)
+        for client in listeclient:
+            if client not in listeservi:
+                listerejet.append(client)
+        m=randint(0,len(listerejet)-1)
+        client2=listerejet[m]
+    else:
+        m=randint(1,len(affectation[voiture2])-2)
+        client2=clients[affectation[voiture2][m]]
+        indice2=[]
+        for k in range(1,len(affectation[voiture2])-1):
+            if clients[affectation[voiture2][k]]==client2:
+                indice2.append(k)
+        nouvelliste2=affectation[voiture2][:indice2[0]]+affectation[voiture2][indice2[0]+1:indice2[1]]+affectation[voiture2][indice2[1]+1:]
+        listecandidat2=insertclient(client1,voiture2,nouvelliste2)
+        if len(listecandidat2)>0:
+            m=randint(0,len(listecandidat2)-1)
+            nouvelliste2=listecandidat2[m]
+        affectationbis[voiture2]=nouvelliste2
+    listecandidat1=insertclient(client2,voiture1,nouvelliste1)
+    if len(listecandidat1)>0:
+        m=randint(0,len(listecandidat1)-1)
+        nouvelliste1=listecandidat1[m]
+    affectationbis[voiture1]=nouvelliste1
+    return(affectationbis)
 
 
-def simulated_annealing(planning, _T0, _lambda, iter_max) :
-    """
-        Applies the simulated annealing algorithm: returns True if it finds a better solution than the initial one, False if not.
 
-    """
+
+
+
+
+def fluctuation3(affectation):
+    listerejet=[]
+    listeservi=listeclientservi(affectation)
+    for client in listeclient:
+        if client not in listeservi:
+            listerejet.append(client)
+    listevoiture=[voiture for voiture in affectation.keys()]
+    for client in listerejet:
+        listecandidat=[]
+        for voiture in listevoiture:
+            candidatvoiturek=insertclient(client,voiture,affectation[voiture])
+            for candidat in candidatvoiturek:
+                listecandidat.append([candidat,voiture])
+        if len(listecandidat)!=0:
+            affectationbis={}
+            for voiture in listevoiture:
+                liste=affectation[voiture][:]
+
+                affectationbis[voiture]=liste
+
+            m=randint(0,len(listecandidat)-1)
+            affectationbis[listecandidat[m][1]]=listecandidat[m][0]
+
+            return(affectationbis)
+    return(None)
+
+
+
+
+epsilon=0
+listejob=[x for x in depose.values()]+[x for x in prise.values()]
+for job1 in listejob:
+    for job2 in listejob:
+        epsilon+=time[(station[job1],station[job2])]
+epsilon=1/epsilon
+
+def energie(affectation):
+    return(len(listeclientservi(affectation))-epsilon*cout_total(affectation))
+
+
+
+
+def recuit_simule(resjson,T0,Tmin,Lambda,nom):
+    #applique l'algorithme du recuit simulé :
+    #resjson est un dictionnaire correspondant au format json demandé
 
     def temperature(T):
-        return(T * _lambda)
+        return(T*Lambda)
+    T=T0
+    res0=json2monformat(resjson)
+    Emax=energie(res0)
+    E0=Emax
+    bestres=res0
 
-    # Initialization
-    n = 0
-    T = _T0
-    E0 = energy(planning=initial_solution, unassigned_bookings=unassigned_clients)
-    Emin = E0
-    optimal_planning = initial_solution
 
-    while n <= iter_max :
-        new_solution = fluctuation(planning=optimal_planning)
 
-        if new_solution != None :
+    while T>Tmin:
+        fluctuation=fluctuation1(res0)
 
-            dif = energy(new_solution) - energy(optimal_planning)
+        if fluctuation!=None:
+            dif=energie(fluctuation)-energie(res0)
+            if dif>=0:
+                res0=fluctuation
 
-            if dif <= 0 :
-                optimal_planning = new_solution
-                print("Energy loss")
-
+                #print("gain d'energie")
+                if energie(res0)>Emax:
+                    Emax=energie(res0)
+                    bestres=res0
             else:
-                p = random()
-                if p < exp(-dif/T):
-                    optimal_planning = new_solution
-                    print("Energy gain")
+                p=random()
+                if p<exp(dif/T):
+                    res0=fluctuation
+                    #print("perte d'energie")
+            T=temperature(T)
 
-        T = temperature(T)
-        n+=1
-    
-    E_min = energy(planning=optimal_planning, unassigned_bookings=optimal_unassigned_bookings)
 
-    if Emin < E0:
-        print("Better solution")
-        nom="essai_T0="+str(_T0)+"_lambda="+str(_lambda)+"iter="+str(iter_max)
-        nom=nom.replace('.',',')
-        with open(nom+".json", 'w', encoding='utf-8') as f:
-            json.dump(my_format_2_json(optimal_planning), f, indent=4)
-        return True
+    plt.show()
+    if Emax>E0:
+        print("meilleur solution !")
 
-        route_cost = json_writing(optimal_planning, file_name = 'heuristics/results/'+nom+'.json')
-        return route_cost
 
     else:
-        print("Any improvement")
-        return None
+        print("pas d'amelioration")
+
+    with open(nom+".json", 'w', encoding='utf-8') as f:
+        json.dump(monformat2json(bestres), f, indent=4)
+    return(int(Emax)+1,cout_total(bestres))
 
 
-################### PARAMETERS ###################
-_T0 = 1.7*10**-6
-_lambda = 0.95
-iter_max = 500
 
-if __name__ == '__main__' :
 
-    with open("results/week2_data.json") as json_data:
+#parametre a changer
+
+
+
+
+
+
+
+
+#nom du fichier a changer pour essayer une  solution
+with open("results/insertion_v2_week2.json") as json_data:
     resjson = json.load(json_data)
 
-    shift_schedules = json_2_my_format(resjson)
+res0=json2monformat(resjson)
 
-    simulated_annealing(initial_solution = shift_schedules, _T0 = _T0, _lambda = _lambda, iter_max=iter_max, sorted_clients=sorted_clients)
+Lambda=0.99
+n=0
+s=0
+while n<50:
+    fluctuation=fluctuation1(res0)
+    if fluctuation!=None:
+        s+=abs(energie(fluctuation)-energie(res0))
+        n+=1
+s/=n
+T0=-s/log(0.99)
+Tmin=-s/log(0.01)
+
+# Debut du decompte du temps
+start_time = clock.time()
+
+recuit_simule(resjson,T0,Tmin,Lambda,"results/sa_week2.json")
+
+# Affichage du temps d execution
+end_time = clock.time()
+print("Temps d execution : %s secondes" % (end_time - start_time))
+
+
 

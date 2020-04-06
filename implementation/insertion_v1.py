@@ -69,6 +69,12 @@ for shift in data["shifts"] :
 
 nb_bookings = int(len(clients)/2)
 
+sorted_clients = []
+for client in max_ride_time.keys():
+    sorted_clients.append((start[drop_off[client]],client))
+    # Sort each booking (client) according to their earliest drop off lower bound time window
+sorted_clients.sort()
+
 
 ############# INSERTION IMPLEMENTATION #############
 
@@ -287,7 +293,7 @@ def init_insertion(sorted, file_name, save) :
     if save :
         json_writing(shift_schedules = shift_schedules, unassigned_clients = unassigned_clients, file_name = file_name)
 
-    return shift_schedules, unassigned_clients, sorted_clients
+    return shift_schedules, sorted_clients
 
 if __name__ == '__main__' :
 
