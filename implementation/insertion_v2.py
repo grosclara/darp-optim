@@ -1,5 +1,6 @@
 import json
 from math import inf
+import time as clock
 
 from data.format_data import sets, parameters, nb_bookings, node_to_station, shifts, bookings, jobs_dict
 from data.models import *
@@ -371,7 +372,7 @@ def _new_potential_insertions(schedule, booking, travel_time):
             if insertion_feasibility :
                 # add_cost represents only the cost of the insertion
                 # cost is the whole route cost
-                add_cost = cost
+                add_cost = cost -schedule.cost
 
             if insertion_feasibility and add_cost < opt_cost :
                 feasibility = True
@@ -397,7 +398,6 @@ def insertion_init(bookings, shifts, travel_time = parameters["time_table_dict"]
     # Build a ordered priority queue of potential route initialization bookings
     if sort :
         bookings.sort()
-        shifts.sort()
 
     # Number of bookings not yet processed
     nb_assigned_bookings = 0
@@ -461,7 +461,15 @@ def json_formatting(schedules, file_name):
 
 if __name__ == '__main__' : 
     
+    # Debut du decompte du temps
+    start_time = clock.time()
+
     schedules = insertion_init(bookings, shifts, parameters["time_table_dict"], True)
-    json_formatting(schedules, "results/insertion_v2_week_v2.json")
+
+    # Affichage du temps d execution
+    end_time = clock.time()
+    print("Temps d execution : %s secondes" % (end_time - start_time))
+
+    json_formatting(schedules, "results/insertion_v2_week2.json")
 
 

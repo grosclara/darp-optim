@@ -1,13 +1,12 @@
 from simulated_annealing import *
-from insertion import *
+from insertion_v1 import *
+
 import numpy as np
 import matplotlib.pyplot as plt
 
-epsilon_bis = 1.1846608174512669e-08
-
-T0_list = np.arange(5*10**-9,2.5*10**-6,5*10**-9)
+T0_list = np.arange(10**-7,2.10**-6,10**-7)
 #T0_list = [7.10**-7]
-lambda_list = np.arange(0.01,0.99,0.01)
+lambda_list = np.arange(0.75,0.99,0.05)
 #lambda_list = [0.95]
 iter_max = 500
 

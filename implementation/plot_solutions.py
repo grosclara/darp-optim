@@ -4,7 +4,7 @@ from random import random
 
 #### DATA EXTRACTION ####
 
-with open("data/day_data.json") as json_data:
+with open("data/week2_data.json") as json_data:
     data = json.load(json_data)
 
 latitude={}
@@ -27,7 +27,7 @@ couleur={}
 for voiture in listevoiture:
     couleur[voiture]=(random(),random(),random())
 
-with open("results/exact_day.json") as json_data:
+with open("results/insertion_v2_week2.json") as json_data:
     resjson = json.load(json_data)
 
 for shift in resjson["shifts"]:
@@ -38,7 +38,7 @@ for shift in resjson["shifts"]:
         listey.append(longitude[job["id"]])
     plt.plot(listex,listey,color=couleur[shift["id"]])
 
-plt.title("Solution exacte day_data")
+plt.title("Insertion v2 week2_data")
 plt.xlabel("Latitude")
 plt.ylabel("Longitude")
 plt.show()

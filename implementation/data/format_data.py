@@ -7,7 +7,7 @@ from .models import Booking, BookingJob, Shift, ShiftJob
 #with open("data/toy_dataset.json") as json_data:
 #with open("data/day_data.json") as json_data:
 #with open("data/week_data.json") as json_data:
-with open("data/week_data_V2.json") as json_data:
+with open("data/week2_data.json") as json_data:
 
     data_dict = json.load(json_data)
 
