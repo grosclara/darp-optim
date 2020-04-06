@@ -1,10 +1,9 @@
 # Import of the pyomo module
 import pyomo.environ as pyo
 from pyomo.util.infeasible import log_infeasible_constraints
-# from gurobipy import *
-import csv
+import csv, json
 
-from extract_data import sets, node_to_station, parameters, nb_bookings
+from data.format_data import sets, parameters, nb_bookings, node_to_station, shifts, bookings
 
 # Creation of an Abstract Model
 model = pyo.AbstractModel()
@@ -17,17 +16,12 @@ model.PuD = pyo.Set(initialize=sets["pud"], doc="Pick up and drop off nodes")
 model.V = pyo.Set(initialize=sets["node"], doc="Pick up, drop off and warehouses nodes")
 model.S = pyo.Set(initialize=sets["station"], doc="Stations")
 
-model.con4 = pyo.Set(initialize = sets["pud"] + [0], doc="Start depot, pick up and drop off nodes")
-model.con3 = pyo.Set(initialize = [2*nb_bookings+1] + sets["pud"], doc="End depot, pick up and drop off nodes")
-
 model.M.construct()
 model.P.construct()
 model.D.construct()
 model.PuD.construct()
 model.V.construct()
 model.S.construct()
-model.con3.construct()
-model.con4.construct()
 
 
 # PARAMETERS
@@ -77,7 +71,7 @@ def c6_rule(model, i, j, k):
     Mij = max(0, mij)
     return model.u[j, k] >= model.u[i, k] + model.e[i] + model.t[node_to_station[i], node_to_station[j]] - Mij * (
                 1 - model.x[i, j, k])
-model.c6 = pyo.Constraint(model.V, model.V, model.M, rule=c6_rule, doc='Coherence visit time') #not checked
+model.c6 = pyo.Constraint(model.V, model.V, model.M, rule=c6_rule, doc='Coherence visit time')
 
 def c7_rule(model, i, k):
     return pyo.inequality(model.tw[i][0], model.u[i, k], model.tw[i][1])
@@ -93,11 +87,11 @@ model.c9 = pyo.Constraint(model.P, model.M, rule=c9_rule, doc='Ride time limit')
 
 def c10_rule(model, i, j, k):
     Qik = min(model.C[k], model.C[k] + model.q_req[i])
-    return model.q[j, k] >= model.q[i, k] + model.q_req[j] - Qik * (1 - model.x[i, j, k]) #not checked
+    return model.q[j, k] >= model.q[i, k] + model.q_req[j] - Qik * (1 - model.x[i, j, k])
 model.c10 = pyo.Constraint(model.V, model.V, model.M, rule=c10_rule, doc='Coherence load vehicule')
 
 def c11_rule(model, i, k):
-    return pyo.inequality(max(0, model.q_req[i]), model.q[i, k], min(model.C[k], model.C[k] + model.q_req[i])) #not checked
+    return pyo.inequality(max(0, model.q_req[i]), model.q[i, k], min(model.C[k], model.C[k] + model.q_req[i]))
 model.c11 = pyo.Constraint(model.V, model.M, rule=c11_rule, doc='Vehicule capacity constraint')
 
 def c12_rule(model, k):
@@ -116,6 +110,7 @@ def c15_rule(model):
     return pyo.inequality(0, sum(model.x[i, i, k] for i in model.V for k in model.M), 0)
 model.c15 = pyo.Constraint(rule=c15_rule, doc='No loop constraint')
 
+
 # DEFINE OBJECTIVE AND SOLVE
 
 def objective_rule(model):
@@ -125,7 +120,71 @@ def objective_rule(model):
         model.t[node_to_station[i], node_to_station[j]] * model.x[i, j, k] for i in model.V for j in model.V for k in
         model.M)
 
-
 model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize, doc='Objective function')
 
-#pyomo solve exact_solving/exact_solving.py --solver=gurobi --save-results "exact_solving/results/test.json"
+
+# FORMAT SOLUTION
+
+## Display of the output
+def pyomo_postprocess(options=None, instance=None, results=None):
+
+    instance.x.display()
+
+    nb_assigned_bookings = 0
+    route_cost = 0
+
+    travel_time = parameters["time_table_dict"]
+
+    res = {}
+    for x in instance.x :
+
+        if instance.x[x].value == 1 : 
+
+            route_cost += travel_time[(node_to_station[x[0]],node_to_station[x[1]])]
+
+            if x[2] not in res.keys():
+                res[x[2]] = []
+            
+            try :
+                time = instance.u[(x[0],x[2])].value
+            except :
+                time = 0
+            
+            if x[0] != 0 and x[0] != 2*nb_bookings+1 :
+
+                if x[0] <= nb_bookings :
+                    nb_assigned_bookings += 1
+                    job_id = bookings[x[0]-1].jobs[0].long_id
+                else :
+                    job_id = bookings[x[0]-nb_bookings-1].jobs[1].long_id
+            
+            elif x[0] == 0 :
+                for shift in shifts :
+                    if shift.long_id == x[2] :
+                        job_id = shift.jobs[0].long_id
+            
+            res[x[2]].append({"id":job_id, "time":time})
+    
+    res2=[]
+    for k in res.keys():
+        res2.append({"id":k,"jobs":res[k]})
+
+    res3={"nb_assigned_bookings": nb_assigned_bookings, "route_cost":route_cost, "shifts": res2}
+
+    with open('results/exact_day.json', 'w', encoding='utf-8') as f:
+        json.dump(res3, f, indent=4)
+
+
+# This is an optional code path that allows the script to be run outside of
+# pyomo command-line
+if __name__ == '__main__':
+    # This emulates what the pyomo command-line tools does
+    from pyomo.opt import SolverFactory
+
+    instance = model.create_instance()
+    opt = SolverFactory("gurobi")
+    results = opt.solve(instance, tee=True)
+
+    # sends results to stdout
+    instance.solutions.load_from(results)
+    pyomo_postprocess(None, instance, results)

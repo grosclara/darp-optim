@@ -1,17 +1,23 @@
 import json
-import pandas
+import pandas as pd
 import numpy as np
-from class_init import Booking, BookingJob, Shift, ShiftJob
+
+from .models import Booking, BookingJob, Shift, ShiftJob
 
 #with open("data/toy_dataset.json") as json_data:
-with open("data/day_data.json") as json_data:
+#with open("data/day_data.json") as json_data:
+#with open("data/week_data.json") as json_data:
+with open("data/week_data_V2.json") as json_data:
+
     data_dict = json.load(json_data)
 
 # BOOKING LIST
 nb_bookings = len(data_dict['bookings'])
 
 bookings = []
+jobs_dict = {}
 count = 1  # Give a proper booking id
+
 for booking in data_dict['bookings']:
     jobs = []
     for job in booking['jobs']:
@@ -29,10 +35,11 @@ for booking in data_dict['bookings']:
         j = BookingJob(job['id'], count, job_id, job['type'],
                        job['timeWindowBeginDate'], job['timeWindowEndDate'],
                        job['duration'], job['latitude'], job['longitude'],
-                       station)
+                       station, booking['maximumDuration'], booking['passengers'])
 
         # Add the job to the job list
         jobs.append(j)
+        jobs_dict[j.job_id] = j
 
     # Create the Booking object
     b = Booking(booking['id'], count, booking['price'],
@@ -63,19 +70,17 @@ for shift in data_dict['shifts']:
 
     # Create the Shift object
     s = Shift(shift['id'], shift['capacity'],
-              shift['maximumTurnover'], jobs)
+              shift['maximumTurnover'], jobs, nb_bookings)
     # Add the Shift s to the shift list
     shifts.append(s)
 
 # TRAVEL TIMES
-#time_data = pandas.read_csv("data/toy_travel_times.csv", sep=';')
-time_data = pandas.read_csv("data/travel_times.csv", sep=';')
+#time_data = pd.read_csv("data/toy_travel_times.csv", sep=';')
+time_data = pd.read_csv("data/travel_times.csv", sep=';')
 nb_stations = len(time_data)
 
 # Matrix where time_table[i,j] is the travel time from station i to j
 time_table_dict = {}
-
-#print(time_data["s{}".format(23)][0])
 
 for i in range(nb_stations):
     for j in range(nb_stations):
@@ -212,17 +217,7 @@ u_0 = max(max(u_i0), U_k0)
 tw_dict[0] = (l_0, u_0)
 tw_dict[2 * nb_bookings + 1] = (l_0, u_0)
 
-tt = np.zeros((52,52))
-for i in range(2*nb_bookings+2):
-    for j in range(2*nb_bookings+2) :
-        tt[i,j] = time_table_dict[node_to_station[i],node_to_station[j]]
-
-M = np.zeros((52,52))
-for i in range(2*nb_bookings+2):
-    for j in range(2*nb_bookings+2) :
-        M[i,j] = max(0,duration_dict[i] + time_table_dict[node_to_station[i],node_to_station[j]] + tw_dict[i][1] - tw_dict[j][0])
-
-parameters = {"time_table_dict": time_table_dict, "tt":tt, "M":M, "duration_dict": duration_dict, "price_dict": price_dict,
+parameters = {"time_table_dict": time_table_dict, "duration_dict": duration_dict, "price_dict": price_dict,
               "max_duration_dict": max_duration_dict, "passengers_dict": passengers_dict,
               "capacity_dict": capacity_dict, "max_turnover_dict": max_turnover_dict, "tw_driver_dict": tw_driver_dict,
               "tw_dict": tw_dict}

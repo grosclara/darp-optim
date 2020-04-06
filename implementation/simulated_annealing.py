@@ -13,7 +13,7 @@ for job1 in jobs:
 epsilon = 1/epsilon
 
 
-def fluctuation(planning, unassigned_bookings) :
+def fluctuation(planning, unassigned_bookings, sorted_clients) :
     """
         Randomly take a customer from among all the customers and assign him a vehicle within the respect of constraints
     """
@@ -21,13 +21,13 @@ def fluctuation(planning, unassigned_bookings) :
     unassigned_bookings_bis = unassigned_bookings[:]
 
     # Choose the booking to be processed
-    m = randint(0, len(sorted_clients)-1)
+    m = randint(0, nb_bookings-1)
     client = sorted_clients[m][1]
 
     shifts = [shift for shift in planning.keys()]
     index_shift = -1
 
-    if client not in unassigned_clients :
+    if client not in unassigned_bookings :
         stop = False
         for k in range(len(shifts)) :
             for i in range(1, len(planning[shifts[k]])-1) :
@@ -90,10 +90,10 @@ def fluctuation(planning, unassigned_bookings) :
 
 
 def energy(planning, unassigned_bookings) :
-    return(- (len(sorted_clients) - len(unassigned_bookings) - epsilon*global_cost(planning)))
+    return(- (nb_bookings - len(unassigned_bookings) - epsilon*global_cost(planning)))
 
 
-def simulated_annealing(initial_solution, unassigned_clients, _T0, _Tmin, _lambda) :
+def simulated_annealing(initial_solution, unassigned_clients, _T0, _lambda, iter_max, sorted_clients) :
     """
         Applies the simulated annealing algorithm: returns True if it finds a better solution than the initial one, False if not.
 
@@ -104,18 +104,14 @@ def simulated_annealing(initial_solution, unassigned_clients, _T0, _Tmin, _lambd
 
     # Initialization
     n = 0
-    
     T = _T0
-    E0 = energy(planning=shift_schedules, unassigned_bookings=unassigned_clients)
+    E0 = energy(planning=initial_solution, unassigned_bookings=unassigned_clients)
     Emin = E0
-    optimal_planning = shift_schedules
+    optimal_planning = initial_solution
     optimal_unassigned_bookings = unassigned_clients
 
-    while T > _Tmin :
-
-        print("Iteration :",n)
-
-        new_solution = fluctuation(planning=optimal_planning, unassigned_bookings=optimal_unassigned_bookings)
+    while n <= iter_max :
+        new_solution = fluctuation(planning=optimal_planning, unassigned_bookings=optimal_unassigned_bookings, sorted_clients=sorted_clients)
 
         if new_solution != None :
 
@@ -128,7 +124,6 @@ def simulated_annealing(initial_solution, unassigned_clients, _T0, _Tmin, _lambd
 
             else:
                 p = random()
-                print(exp(-dif/T))
                 if p < exp(-dif/T):
                     optimal_planning = new_solution[0]
                     optimal_unassigned_bookings = new_solution[1]
@@ -141,25 +136,23 @@ def simulated_annealing(initial_solution, unassigned_clients, _T0, _Tmin, _lambd
 
     if E_final < E0:
         print("Better solution")
-        print(E0)
-        print(E_final)
-        nom="essai_T0="+str(_T0)+"_Tmin="+str(_Tmin)+"_lambda="+str(_lambda)
+        nom="essai_T0="+str(_T0)+"_lambda="+str(_lambda)+"iter="+str(iter_max)
         nom=nom.replace('.',',')
-        json_writing(optimal_planning, optimal_unassigned_bookings, file_name = 'heuristics/results/'+nom+'.json')
-        return True
+        route_cost = json_writing(optimal_planning, optimal_unassigned_bookings, file_name = 'heuristics/results/'+nom+'.json')
+        print(route_cost)
+        return route_cost
 
     else:
         print("Any improvement")
-        return False
+        return None
 
 
 ################### PARAMETERS ###################
-
-_T0 = 10**-6
-_Tmin = 0.1*_T0
-_lambda = 0.999
+_T0 = 1.7*10**-6
+_lambda = 0.95
+iter_max = 500
 
 if __name__ == '__main__' :
-
-    simulated_annealing(initial_solution = shift_schedules, unassigned_clients = unassigned_clients, _T0 = _T0, _Tmin = _Tmin, _lambda = _lambda)
+    shift_schedules , unassigned_clients, sorted_clients = init_insertion(sorted = True, file_name = "heuristics/results/test.json", save = False)
+    simulated_annealing(initial_solution = shift_schedules, unassigned_clients = unassigned_clients, _T0 = _T0, _lambda = _lambda, iter_max=iter_max, sorted_clients=sorted_clients)
 
