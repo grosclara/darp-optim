@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import time as clock
 
 #extraction des donnes
-with open("data/week2_data.json") as json_data:
+with open("data/evaluation_data.json") as json_data:
     data = json.load(json_data)
 
 time_data = pandas.read_csv("data/travel_times.csv", sep=';')
@@ -99,7 +99,7 @@ def verifie(listeclient, voiture):
         return(False)
         #verifie les contraintes de charge et salaire max pour la voiture
     if len(listetemps)>2:
-        if listetemps[-1]-listetemps[-2]<time[(station[listeclient[-1]],station[listeclient[-2]])]+duree[listeclient[-2]]:
+        if listetemps[-1]-listetemps[-2]<time[(station[listeclient[-2]],station[listeclient[-1]])]+duree[listeclient[-2]] or listetemps[-1] < listetemps[-2]:
             return(False)
 
     return(True)
@@ -376,24 +376,13 @@ def recuit_simule(resjson,T0,Tmin,Lambda,nom):
     return(int(Emax)+1,cout_total(bestres))
 
 
-
-
-#parametre a changer
-
-
-
-
-
-
-
-
 #nom du fichier a changer pour essayer une  solution
-with open("results/insertion_v2_week2.json") as json_data:
+with open("results/insertion_v1_eval.json") as json_data:
     resjson = json.load(json_data)
 
 res0=json2monformat(resjson)
 
-Lambda=0.99
+Lambda=0.9999
 n=0
 s=0
 while n<50:
@@ -408,7 +397,7 @@ Tmin=-s/log(0.01)
 # Debut du decompte du temps
 start_time = clock.time()
 
-recuit_simule(resjson,T0,Tmin,Lambda,"results/sa_week2.json")
+recuit_simule(resjson,T0,Tmin,Lambda,"results/sa_eval_insertion_v1")
 
 # Affichage du temps d execution
 end_time = clock.time()

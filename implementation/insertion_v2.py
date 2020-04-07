@@ -1,5 +1,6 @@
 import json
 from math import inf
+import random as rd
 import time as clock
 
 from data.format_data import sets, parameters, nb_bookings, node_to_station, shifts, bookings, jobs_dict
@@ -398,6 +399,8 @@ def insertion_init(bookings, shifts, travel_time = parameters["time_table_dict"]
     # Build a ordered priority queue of potential route initialization bookings
     if sort :
         bookings.sort()
+    else :
+        rd.shuffle(bookings)
 
     # Number of bookings not yet processed
     nb_assigned_bookings = 0
@@ -464,12 +467,12 @@ if __name__ == '__main__' :
     # Debut du decompte du temps
     start_time = clock.time()
 
-    schedules = insertion_init(bookings, shifts, parameters["time_table_dict"], True)
+    schedules = insertion_init(bookings, shifts, parameters["time_table_dict"], False)
 
     # Affichage du temps d execution
     end_time = clock.time()
     print("Temps d execution : %s secondes" % (end_time - start_time))
 
-    json_formatting(schedules, "results/insertion_v2_week2.json")
+    json_formatting(schedules, "results/insertion_v2_test.json")
 
 

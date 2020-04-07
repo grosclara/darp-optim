@@ -6,7 +6,7 @@ from random import shuffle
 
 ############# DATA EXTRACTION #############
 
-with open("data/week2_data.json") as json_data:
+with open("data/evaluation_data.json") as json_data:
     data = json.load(json_data)
 
 time_data = pd.read_csv("data/travel_times.csv", sep=';')
@@ -248,8 +248,8 @@ def json_writing(shift_schedules, unassigned_clients, file_name) :
         shifts.append(dic)
 
     resjson={"nb_assigned_bookings":nb_assigned_bookings, "route_cost":route_cost, "shifts":shifts}
-    #with open(file_name, 'w', encoding='utf-8') as f:
-      #  json.dump(resjson, f, indent=4)
+    with open(file_name, 'w', encoding='utf-8') as f:
+        json.dump(resjson, f, indent=4)
     return route_cost
 
 
@@ -300,7 +300,7 @@ if __name__ == '__main__' :
     # Debut du decompte du temps
     start_time = clock.time()
 
-    init_insertion(sorted = True, file_name = "results/insertion_v1_week2.json", save = True)
+    init_insertion(sorted = True, file_name = "results/insertion_v1_eval.json", save = True)
 
     # Affichage du temps d execution
     end_time = clock.time()
